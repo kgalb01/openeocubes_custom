@@ -24,7 +24,8 @@ Imports:
     sf,
     useful,
     gdalcubes,
-    rstac
+    rstac,
+    caret
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Collate: 
