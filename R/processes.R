@@ -5,6 +5,7 @@
 #' @import rstac
 #' @import useful
 #' @import sf
+#' @import caret
 NULL
 
 #' schema_format
