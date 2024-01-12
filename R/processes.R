@@ -6,7 +6,6 @@
 #' @import useful
 #' @import sf
 #' @import caret
-#' @import raster
 NULL
 
 #' schema_format
@@ -1185,28 +1184,59 @@ classify_cube_rf <- Process$new(
   ),
   returns = eo_datacube,
   operation = function(aoi_cube, aot_cube, training_data, ntree){
-    # read trainingsdata
-    train_data <- sf::st_read(training_data, quiet = TRUE)
+    tryCatch({
+      # read trainingsdata
+      train_data <- sf::st_read(training_data, quiet = TRUE)
+      # change CRS of training_data to match with cubes
+      training_data <- sf::st_transform(training_data, crs = gdalcubes::srs(aot_cube))
+    },
+    error = function(err) {
+      message(toString(err))
+    })
 
-    # combine trainingsdata with area of training raster data
-    extr <- gdalcubes::extract_geom(aoi_cube, train_data, reduce_time = TRUE)
-    train_data$PolyID <- seq_len(nrow(train_data))
-    extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
+    tryCatch({
+      # combine trainingsdata with area of training raster data
+      extr <- gdalcubes::extract_geom(aoi_cube, train_data, reduce_time = TRUE)
+      train_data$PolyID <- seq_len(nrow(train_data))
+      extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
+    },
+    error = function(err) {
+      message(toString(err))
+    })
 
-    # prepare the trainingdata for the modeltraining
-    predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
-    train_dat <- extr[train_ids, ]
-    train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+    tryCatch({
+      # prepare the trainingdata for the modeltraining
+      predictors <- c("B02", "B03", "B04", "B08")
+      train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
+      train_dat <- extr[train_ids, ]
+      train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+    },
+    error = function(err) {
+      message(toString(err))
+    })
 
-    model <- train(train_dat[, predictors],
-                   train_dat$Label,
-                   method = "rf",
-                   importance = TRUE,
-                   ntree = ntree)
-
-    # predict on aoi_cube
-    prediction <- predict(aoi_cube, model)
-    return(prediction)
+    tryCatch({
+      # train the model
+      model <- caret::train(
+                            class ~ .,
+                           train_dat[, predictors],
+                           train_dat$Label,
+                           method = "rf",
+                           importance = TRUE,
+                           ntree = ntree)
+    },
+    error = function(err) {
+      message(toString(err))
+    }
+    )
+    tryCatch({
+      # predict on aoi_cube
+      prediction <- predict(aoi_cube, model)
+      return(prediction)
+    },
+    error = function(err) {
+      message(toString(err))
+    }
+    )
   }
 )

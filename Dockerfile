@@ -15,9 +15,6 @@ RUN R -e "install.packages('gdalcubes')"
 # Install caret package
 RUN R -e "install.packages('caret')"
 
-# Install caret package
-RUN R -e "install.packages('raster')"
-
 # install other necessary packages
 RUN apt-get install -y libsodium-dev libudunits2-dev
 RUN Rscript -e "install.packages(c('plumber', 'useful', 'ids', 'R6', 'sf', 'rstac','bfast'))"
