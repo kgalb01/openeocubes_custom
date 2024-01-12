@@ -1148,166 +1148,65 @@ save_result <- Process$new(
 ##################################  TERRA CLASSIFIER ##################################
 ######################################################################################
 
-# train_model_rf
-train_model_rf <- Process$new(
-  id = "train_model_rf",
-  description = "Takes a datacube and trains a random forest model.",
+#' classify_cube
+classify_cube_rf <- Process$new(
+  id = "classify_cube_rf",
+  description = "classifies a datacube (AoI) with the help of trainingdata and a second datacube (AoT). ",
   categories = as.array("cubes"),
-  summary = "Train a random forest model",
+  summary = "classifying using rf machine learning model",
   parameters = list(
+    Parameter$new(
+      name = "aoi_cube",
+      description = "The datacube to be classified",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "aot_cube",
+      description = "The datacube to be classified",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "training_data",
+      description = "GeoJSON containing the training data",
+      schema = list(type = "object"),
+      optional = TRUE
+    ),
     Parameter$new(
       name = "ntree",
-      description = "Number of trees for the random forest model.",
-      schema = list(
-        type = "integer"
-      )
-    ),
-    Parameter$new(
-      name = "trainingdata",
-      description = "Training data used for training.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "cube",
-      description = "Datacube containing the Area of Training.",
-      schema = list(
-        type = "object"
-      )
-    )
-  ),
-  returns = list(
-    description = "The trained model",
-    schema = list(type = "object")
-  ),
-  operation = function(cube, trainingdata, ntree) {
-    # load training data with sf library
-    train_data <- sf::st_read(trainingdata, quiet = TRUE)
-
-    # change CRS just to be sure
-    train_data <- sf::st_transform(train_data, crs = gdalcubes::srs(cube))
-
-    # combine data from cube and training data
-    extr <- gdalcubes::extract_geom(cube, train_data, srs = gdalcubes::srs(cube))
-    train_data$PolyID <- seq_len(nrow(train_data))
-    extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
-
-    # prepare data for training further
-    predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
-    train_data_final <- extr[train_ids, ]
-    train_data_final <- train_data_final[complete.cases(train_data_final[, predictors]), ]
-
-    # train model
-    model <- caret::train(
-      train_data_final[, predictors],
-      train_data_final$Label,
-      method = "rf",
-      importance = TRUE,
-      ntree = ntree
-    )
-    res <- list()
-    res$model <- model
-    res$train_data_final <- train_data_final
-    return(res)
-  }
-)
-
-# train_model_knn
-train_model_knn <- Process$new(
-  id = "train_model_knn",
-  description = "Takes a datacube and a set of training data and trains a k-nearest neighbor model.",
-  categories = as.array("cubes"),
-  summary = "Train a k-nearest neighbor model",
-  parameters = list(
-    Parameter$new(
-      name = "tune_length",
-      description = "Number of neighbors to consider for the model.",
-      schema = list(
-        type = "integer"
-      )
-    ),
-    Parameter$new(
-      name = "trainingdata",
-      description = "One or more trainingsdata used for training.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "cube",
-      description = "Datacube containing the Area of Training extract the reflection data on.",
-      schema = list(
-        type = "object"
-      )
-    )
-  ),
-  returns = list(
-    description = "The trained model",
-    schema = list(type = "object")
-  ),
-  operation = function(cube, trainingdata, tune_length){
-    # download aot into temporary file
-    temp_file <- tempfile(fileext = ".tif")
-    formats <- list_file_formats()
-    result <- p$save_result(data = data, format = formats$output$GTiff)
-    openeo::compute_result(graph = result, output_file = temp_file)
-    raster_object <- raster::stack(temp_file)
-
-    # load training data with sf library
-    train_data <- sf::st_read(trainingdata, quiet = TRUE)
-
-    # combine data from cube and training data
-    extr <- raster::extract(raster_object, train_data, df = TRUE)
-    train_data$PolyID <- seq_len(nrow(train_data))
-    extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
-
-    # prepare data for training further
-    predictors  <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
-    train_data_final <- extr[train_ids, ]
-    train_data_final <- train_data_final[complete.cases(train_data_final[, predictors]), ]
-
-    # train model
-    model <- caret::train(
-      train_data_final[, predictors],
-      train_data_final$Label,
-      method = "knn",
-      tuneLength = tune_length
-    )
-    return(model)
-  }
-)
-
-
-#' classify_model
-classify_model <- Process$new(
-  id = "classify_model",
-  description = "Takes a datacube and a trained model and classifies the datacube.",
-  categories = as.array("cubes"),
-  summary = "Classify a datacube",
-  parameters = list(
-    Parameter$new(
-      name = "cube",
-      description = "Datacube containing the Area of Interest.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "model",
-      description = "A trained model.",
-      schema = list(
-        type = "object"
-      )
+      description = "Number of trees to grow in random forest",
+      schema = list(type = "integer")
     )
   ),
   returns = eo_datacube,
-  operation = function(cube, model){
-    # predict
-    prediction = predict(datacube, model)
+  operation = function(aoi_cube, aot_cube, training_data, ntree){
+    # read trainingsdata
+    train_data <- sf::st_read(training_data, quiet = TRUE)
+
+    # combine trainingsdata with area of training raster data
+    extr <- gdalcubes::extract_geom(aoi_cube, train_data, reduce_time = TRUE)
+    train_data$PolyID <- seq_len(nrow(train_data))
+    extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
+
+    # prepare the trainingdata for the modeltraining
+    predictors <- c("B02", "B03", "B04", "B08")
+    train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
+    train_dat <- extr[train_ids, ]
+    train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+
+    model <- train(train_dat[, predictors],
+                   train_dat$Label,
+                   method = "rf",
+                   importance = TRUE,
+                   ntree = ntree)
+
+    # predict on aoi_cube
+    prediction <- predict(aoi_cube, model)
     return(prediction)
   }
 )
-
