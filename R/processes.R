@@ -1,6 +1,7 @@
 #' cube processes openEO standards mapped to gdalcubes processes
 #'
 #' @include Process-class.R
+#' @import terra
 #' @import gdalcubes
 #' @import rstac
 #' @import useful
@@ -1182,13 +1183,25 @@ classify_cube_rf <- Process$new(
       schema = list(type = "integer")
     )
   ),
-  returns = eo_datacube,
+  returns = list(
+    type = "object",
+    description = "The classified data"
+  ),
   operation = function(aoi_cube, aot_cube, training_data, ntree){
+
+    tryCatch({
+      # download area of training raster data
+      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
+    },
+    error = function(err) {
+      message(toString(err))
+    })
+
     tryCatch({
       # read trainingsdata
       train_data <- sf::st_read(training_data, quiet = TRUE)
-      # change CRS of training_data to match with cubes
-      training_data <- sf::st_transform(training_data, crs = gdalcubes::srs(aot_cube))
+      # change CRS
+      train_data <- sf::st_transform(train_data, crs = crs(aot_raster))
     },
     error = function(err) {
       message(toString(err))
@@ -1196,7 +1209,7 @@ classify_cube_rf <- Process$new(
 
     tryCatch({
       # combine trainingsdata with area of training raster data
-      extr <- gdalcubes::extract_geom(aoi_cube, train_data, reduce_time = TRUE)
+      extr <- terra::extract(aoi_cube, train_data, reduce_time = TRUE)
       train_data$PolyID <- seq_len(nrow(train_data))
       extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
     },
@@ -1218,20 +1231,29 @@ classify_cube_rf <- Process$new(
     tryCatch({
       # train the model
       model <- caret::train(
-                            class ~ .,
-                           train_dat[, predictors],
-                           train_dat$Label,
-                           method = "rf",
-                           importance = TRUE,
-                           ntree = ntree)
+        class ~ .,
+        train_dat[, predictors],
+        train_dat$Label,
+        method = "rf",
+        importance = TRUE,
+        ntree = ntree)
     },
     error = function(err) {
       message(toString(err))
     }
     )
+
+    tryCatch({
+      # download area of interest raster data
+      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
+    },
+    error = function(err) {
+      message(toString(err))
+    })
+
     tryCatch({
       # predict on aoi_cube
-      prediction <- predict(aoi_cube, model)
+      prediction <- predict(aoi_raster, model)
       return(prediction)
     },
     error = function(err) {
