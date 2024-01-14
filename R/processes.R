@@ -1,7 +1,6 @@
 #' cube processes openEO standards mapped to gdalcubes processes
 #'
 #' @include Process-class.R
-#' @import terra
 #' @import gdalcubes
 #' @import rstac
 #' @import useful
@@ -1260,5 +1259,57 @@ classify_cube_rf <- Process$new(
       message(toString(err))
     }
     )
+  }
+)
+
+#' cube_test
+cube_test <- Process$new(
+  id = "cube_test",
+  description = "test process to test functionallity of openeocubes.",
+  categories = as.array("cubes"),
+  summary = "test process",
+  parameters = list(
+    Parameter$new(
+      name = "data",
+      description = "The datacube to be classified",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "context",
+      description = "Additional data passed by the user.",
+      schema = list(description = "Any data type."),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "nir",
+      description = "The name of the NIR band. Defaults to the band that has the common name nir assigned..",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "red",
+      description = "The name of the red band. Defaults to the band that has the common name red assigned.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(data, context, job) {
+    if ("cube" %in% class(data)) {
+    ndvi_test <- ((data[["B08"]] - data[["B04"]]) / (data[["B08"]] + data[["B04"]]))
+    return(ndvi_test)
+      message("ndvi calculated ....")
+      message(gdalcubes::as_json(ndvi_test))
+      return(ndvi_test)
+    } else {
+      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
+    }
   }
 )
