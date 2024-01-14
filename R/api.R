@@ -315,5 +315,7 @@ addEndpoint = function() {
   Session$assignProcess(multiply)
   Session$assignProcess(divide)
   Session$assignProcess(classify_cube_rf)
-  Session$assignProcess(cube_test)
+  Session$assignProcess(cube_test_ndvi)
+  Session$assignProcess(cube_test_nested)
+  Session$assignProcess(cube_test_sub_10)
 }

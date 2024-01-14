@@ -1262,16 +1262,16 @@ classify_cube_rf <- Process$new(
   }
 )
 
-#' cube_test
-cube_test <- Process$new(
-  id = "cube_test",
-  description = "test process to test functionallity of openeocubes.",
+#' cube_test_ndvi
+cube_test_ndvi <- Process$new(
+  id = "cube_test_ndvi",
+  description = "test process to test functionallity of openeocubes with NDVI.",
   categories = as.array("cubes"),
-  summary = "test process",
+  summary = "test process ndvi",
   parameters = list(
     Parameter$new(
       name = "data",
-      description = "The datacube to be classified",
+      description = "The datacube",
       schema = list(
         type = "object",
         subtype = "raster-cube"
@@ -1301,13 +1301,114 @@ cube_test <- Process$new(
     )
   ),
   returns = eo_datacube,
-  operation = function(data, context, job) {
+  operation = function(data, context, job, nir, red) {
     if ("cube" %in% class(data)) {
-    ndvi_test <- ((data[["B08"]] - data[["B04"]]) / (data[["B08"]] + data[["B04"]]))
-    return(ndvi_test)
+      ndvi_test <- ((nir - red) / (nir + red))
+      return(ndvi_test)
       message("ndvi calculated ....")
       message(gdalcubes::as_json(ndvi_test))
       return(ndvi_test)
+    } else {
+      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
+    }
+  }
+)
+
+#' cube_test_sub_10
+cube_test_sub_10 <- Process$new(
+  id = "cube_test_sub_10",
+  description = "test process to test functionallity of openeocubes with random shit.",
+  categories = as.array("cubes"),
+  summary = "test process random shit",
+  parameters = list(
+    Parameter$new(
+      name = "data",
+      description = "The datacube",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "context",
+      description = "Additional data passed by the user.",
+      schema = list(description = "Any data type."),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "band",
+      description = "The name of the band that is to be random shitted",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(data, context, job, band) {
+    if ("cube" %in% class(data)) {
+      sub_10 <- (data[["band"]] - 10)
+      return(sub_10)
+      message("ndvi calculated ....")
+      message(gdalcubes::as_json(sub_10))
+      return(sub_10)
+    } else {
+      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
+    }
+  }
+)
+
+#' cube_test_nested
+cube_test_nested <- Process$new(
+  id = "cube_test_nested",
+  description = "test process to test functionallity of openeocubes with a nested openeo process.",
+  categories = as.array("cubes"),
+  summary = "test process nested process",
+  parameters = list(
+    Parameter$new(
+      name = "data",
+      description = "The datacube",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "context",
+      description = "Additional data passed by the user.",
+      schema = list(description = "Any data type."),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "process",
+      description = "The name of the parameter where the processes are bound to",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(data, context, job, process) {
+    # udf
+    ndvi_data <- 'function(x) {
+      # Überprüfen Sie, ob das Band "B08" vorhanden ist
+      if ("B08" %in% names(x)) {
+        # Berechnen Sie den NDVI
+        ndvi <- ((x[["B08"]] - x[["B04"]]) / (x[["B08"]] + x[["B04"]]))
+        return(ndvi)
+      } else {
+        return(c(NA,NA))
+      }
+    }'
+
+    if ("cube" %in% class(data)) {
+      p <- process
+      datacube_udf = p$run_udf(data = data, udf = ndvi_data, context =  c("ndvi test"))
+      return(datacube_udf)
+      message("nested ndvi calculated ....")
+      message(gdalcubes::as_json(datacube_udf))
+      return(datacube_udf)
     } else {
       stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
     }
