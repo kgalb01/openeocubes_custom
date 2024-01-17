@@ -1212,10 +1212,14 @@ evi <- Process$new(
     blue_formatted <- format_band_name(blue)
 
     # Construct the EVI calculation formula
-    evi_formula <- sprintf("2.5 * ((%s - %s)/(%s + 6 * %s - ((7.5 * %s) + 1)))", nir_formatted, red_formatted, nir_formatted, red_formatted, blue_formatted)
+    evi_formula <- sprintf("(2.5 * ((%s - %s) /
+    (%s + (6 * %s) - (7.5 * %s)) + 1))",
+                           nir_formatted, red_formatted, nir_formatted,
+                           red_formatted, blue_formatted)
 
     # Apply the EVI calculation
-    cube <- gdalcubes::apply_pixel(data, evi_formula, names = "EVI", keep_bands = FALSE)
+    cube <- gdalcubes::apply_pixel(data, evi_formula,
+                                   names = "EVI", keep_bands = FALSE)
 
     # Log and return the result
     message("EVI calculated ....")
@@ -1224,13 +1228,21 @@ evi <- Process$new(
   }
 )
 
-#' train_model_rf
-train_model_rf <- Process$new(
-  id = "train_model_rf",
-  description = "Trains a random forest machine learning model using a datacube and training data.",
+#' classify_cube_rf
+classify_cube_rf <- Process$new(
+  id = "classify_cube_rf",
+  description = "Trains a random forest machine learning model using a datacube and training data.", #nolint
   categories = as.array("cubes"),
   summary = "Train Random Forest Model",
   parameters = list(
+    Parameter$new(
+      name = "aoi_cube",
+      description = "The datacube to classify on (area of interest).",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
     Parameter$new(
       name = "aot_cube",
       description = "The datacube to be used for training.",
@@ -1251,19 +1263,17 @@ train_model_rf <- Process$new(
       schema = list(type = "integer")
     )
   ),
-  returns = list(
-    type = "object",
-    description = "The trained random forest model."
-  ),
-  operation = function(aot_cube, training_data, ntree) {
+  returns = eo_datacube,
+  operation = function(aoi_cube, aot_cube, training_data, ntree) {
     # combine training data with EO data
     extraction <- extract_geom(aot_cube, training_data, df = TRUE)
     extraction$PolyID <- seq_len(nrow(extraction))
-    extraction <- merge(extraction, training_data, by.x = "PolyID", by.y = "FID")
+    extraction <- merge(extraction, training_data,
+                        by.x = "PolyID", by.y = "FID")
 
     # prepare the training data for model training
     predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extraction$PolyID, p = 0.1, list = FALSE)
+    train_ids <- createDataPartition(extraction$PolyID, p = 0.9, list = FALSE)
     train_dat <- extraction[train_ids, ]
     train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
 
@@ -1274,17 +1284,35 @@ train_model_rf <- Process$new(
       method = "rf",
       ntree = ntree
     )
-    return(model)
+
+    # predict the model using apply_pixel function
+    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                              FUN = function(aoi_cube){
+                                predict(aoi_cube, model)
+                              })
+
+    message("rf model calculated and AoI classified....")
+    message(gdalcubes::as_json(cube))
+
+    return(prediction)
   }
 )
 
-#' train_model_knn
-train_model_knn <- Process$new(
-  id = "train_model_knn",
-  description = "Trains a k-nearest neighbor machine learning model using a datacube and training data.",
+#' classify_cube_knn
+classify_cube_knn <- Process$new(
+  id = "classify_cube_knn",
+  description = "Trains a k-nearest neighbor machine learning model using a datacube and training data.", #nolint
   categories = as.array("cubes"),
-  summary = "Train k-Nearest Neighbor Model",
+  summary = "Train k-nearest neighbor model and classify",
   parameters = list(
+    Parameter$new(
+      name = "aoi_cube",
+      description = "The datacube to classify on (area of interest).",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
     Parameter$new(
       name = "aot_cube",
       description = "The datacube to be used for training.",
@@ -1301,23 +1329,21 @@ train_model_knn <- Process$new(
     ),
     Parameter$new(
       name = "k",
-      description = "Number of nearest neighbors to consider.",
+      description = "Number of neighbors to be considered in the model.",
       schema = list(type = "integer")
     )
   ),
-  returns = list(
-    type = "object",
-    description = "The trained k-nearest neighbor model."
-  ),
-  operation = function(aot_cube, training_data, k) {
+  returns = eo_datacube,
+  operation = function(aoi_cube, aot_cube, training_data, k) {
     # combine training data with EO data
     extraction <- extract_geom(aot_cube, training_data, df = TRUE)
     extraction$PolyID <- seq_len(nrow(extraction))
-    extraction <- merge(extraction, training_data, by.x = "PolyID", by.y = "FID")
+    extraction <- merge(extraction, training_data,
+                        by.x = "PolyID", by.y = "FID")
 
     # prepare the training data for model training
     predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extraction$PolyID, p = 0.1, list = FALSE)
+    train_ids <- createDataPartition(extraction$PolyID, p = 0.9, list = FALSE)
     train_dat <- extraction[train_ids, ]
     train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
 
@@ -1326,8 +1352,19 @@ train_model_knn <- Process$new(
       train_dat[, predictors],
       train_dat$Label,
       method = "knn",
-      tuneGrid = data.frame(k = k)
+      tuneLength = k
     )
-    return(model)
+
+    # predict the model using apply_pixel function
+    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                              FUN = function(aoi_cube){
+                                predict(aoi_cube, model)
+                              })
+
+    message("knn model calculated and AoI classified....")
+    message(gdalcubes::as_json(cube))
+
+    return(prediction)
   }
 )
+
