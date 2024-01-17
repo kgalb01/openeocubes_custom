@@ -1147,141 +1147,20 @@ save_result <- Process$new(
 ##################################  TERRA CLASSIFIER ##################################
 ######################################################################################
 
-#' classify_cube
-classify_cube_rf <- Process$new(
-  id = "classify_cube_rf",
-  description = "classifies a datacube (AoI) with the help of trainingdata and a second datacube (AoT). ",
+#' evi
+evi <- Process$new(
+  id = "evi",
+  description = "Computes the Enhanced Vegetation Index (EVI). The EVI is computed as 2.5 * ((nir - red) / (nir + 6 * red - 7.5 * blue + 1)).",
   categories = as.array("cubes"),
-  summary = "classifying using rf machine learning model",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "The datacube to be classified",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "The datacube to be classified",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "training_data",
-      description = "GeoJSON containing the training data",
-      schema = list(type = "object"),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "Number of trees to grow in random forest",
-      schema = list(type = "integer")
-    )
-  ),
-  returns = list(
-    type = "object",
-    description = "The classified data"
-  ),
-  operation = function(aoi_cube, aot_cube, training_data, ntree){
-
-    tryCatch({
-      # download area of training raster data
-      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-    },
-    error = function(err) {
-      message(toString(err))
-    })
-
-    tryCatch({
-      # read trainingsdata
-      train_data <- sf::st_read(training_data, quiet = TRUE)
-      # change CRS
-      train_data <- sf::st_transform(train_data, crs = crs(aot_raster))
-    },
-    error = function(err) {
-      message(toString(err))
-    })
-
-    tryCatch({
-      # combine trainingsdata with area of training raster data
-      extr <- terra::extract(aoi_cube, train_data, reduce_time = TRUE)
-      train_data$PolyID <- seq_len(nrow(train_data))
-      extr <- merge(extr, train_data, by.x = "ID", by.y = "PolyID")
-    },
-    error = function(err) {
-      message(toString(err))
-    })
-
-    tryCatch({
-      # prepare the trainingdata for the modeltraining
-      predictors <- c("B02", "B03", "B04", "B08")
-      train_ids <- createDataPartition(extr$ID, p = 0.1, list = FALSE)
-      train_dat <- extr[train_ids, ]
-      train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
-    },
-    error = function(err) {
-      message(toString(err))
-    })
-
-    tryCatch({
-      # train the model
-      model <- caret::train(
-        class ~ .,
-        train_dat[, predictors],
-        train_dat$Label,
-        method = "rf",
-        importance = TRUE,
-        ntree = ntree)
-    },
-    error = function(err) {
-      message(toString(err))
-    }
-    )
-
-    tryCatch({
-      # download area of interest raster data
-      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-    },
-    error = function(err) {
-      message(toString(err))
-    })
-
-    tryCatch({
-      # predict on aoi_cube
-      prediction <- predict(aoi_raster, model)
-      return(prediction)
-    },
-    error = function(err) {
-      message(toString(err))
-    }
-    )
-  }
-)
-
-#' cube_test_ndvi
-cube_test_ndvi <- Process$new(
-  id = "cube_test_ndvi",
-  description = "test process to test functionallity of openeocubes with NDVI.",
-  categories = as.array("cubes"),
-  summary = "test process ndvi",
+  summary = "Enhanced Vegetation Index",
   parameters = list(
     Parameter$new(
       name = "data",
-      description = "The datacube",
+      description = "A data cube with bands.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
       )
-    ),
-    Parameter$new(
-      name = "context",
-      description = "Additional data passed by the user.",
-      schema = list(description = "Any data type."),
-      optional = TRUE
     ),
     Parameter$new(
       name = "nir",
@@ -1298,119 +1177,157 @@ cube_test_ndvi <- Process$new(
         type = "string"
       ),
       optional = FALSE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(data, context, job, nir, red) {
-    if ("cube" %in% class(data)) {
-      ndvi_test <- ((nir - red) / (nir + red))
-      return(ndvi_test)
-      message("ndvi calculated ....")
-      message(gdalcubes::as_json(ndvi_test))
-      return(ndvi_test)
-    } else {
-      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
-    }
-  }
-)
-
-#' cube_test_sub_10
-cube_test_sub_10 <- Process$new(
-  id = "cube_test_sub_10",
-  description = "test process to test functionallity of openeocubes with random shit.",
-  categories = as.array("cubes"),
-  summary = "test process random shit",
-  parameters = list(
-    Parameter$new(
-      name = "data",
-      description = "The datacube",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
     ),
     Parameter$new(
-      name = "context",
-      description = "Additional data passed by the user.",
-      schema = list(description = "Any data type."),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "band",
-      description = "The name of the band that is to be random shitted",
+      name = "blue",
+      description = "The name of the blue band. Defaults to the band that has the common name blue assigned.",
       schema = list(
         type = "string"
       ),
       optional = FALSE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(data, context, job, band) {
-    if ("cube" %in% class(data)) {
-      sub_10 <- (data[["band"]] - 10)
-      return(sub_10)
-      message("ndvi calculated ....")
-      message(gdalcubes::as_json(sub_10))
-      return(sub_10)
-    } else {
-      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
-    }
-  }
-)
-
-#' cube_test_nested
-cube_test_nested <- Process$new(
-  id = "cube_test_nested",
-  description = "test process to test functionallity of openeocubes with a nested openeo process.",
-  categories = as.array("cubes"),
-  summary = "test process nested process",
-  parameters = list(
-    Parameter$new(
-      name = "data",
-      description = "The datacube",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
     ),
     Parameter$new(
-      name = "context",
-      description = "Additional data passed by the user.",
-      schema = list(description = "Any data type."),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "process",
-      description = "The name of the parameter where the processes are bound to",
+      name = "target_band",
+      description = "By default, the dimension of type bands is dropped. To keep the dimension specify a new band name in this parameter so that a new dimension label with the specified name will be added for the computed values.",
       schema = list(
         type = "string"
       ),
-      optional = FALSE
+      optional = TRUE
     )
   ),
   returns = eo_datacube,
-  operation = function(data, context, job, process) {
-    # udf
-    ndvi_data <- 'function(x) {
-      # Überprüfen Sie, ob das Band "B08" vorhanden ist
-      if ("B08" %in% names(x)) {
-        # Berechnen Sie den NDVI
-        ndvi <- ((x[["B08"]] - x[["B04"]]) / (x[["B08"]] + x[["B04"]]))
-        return(ndvi)
+  operation = function(data, nir = "nir", red = "red", blue = "blue", target_band = NULL, job){
+    # Function to ensure band names are properly formatted
+    format_band_name <- function(band) {
+      if (grepl("^B\\d{2}$", band, ignore.case = TRUE)) {
+        return(toupper(band))
       } else {
-        return(c(NA,NA))
+        return(band)
       }
-    }'
-
-    if ("cube" %in% class(data)) {
-      p <- process
-      datacube_udf = p$run_udf(data = data, udf = ndvi_data, context =  c("ndvi test"))
-      return(datacube_udf)
-      message("nested ndvi calculated ....")
-      message(gdalcubes::as_json(datacube_udf))
-      return(datacube_udf)
-    } else {
-      stop('Der bereitgestellte Würfel ist nicht von der Klasse "cube"')
     }
+
+    # Apply formatting to band names
+    nir_formatted <- format_band_name(nir)
+    red_formatted <- format_band_name(red)
+    blue_formatted <- format_band_name(blue)
+
+    # Construct the EVI calculation formula
+    evi_formula <- sprintf("2.5 * ((%s - %s)/(%s + 6 * %s - ((7.5 * %s) + 1)))", nir_formatted, red_formatted, nir_formatted, red_formatted, blue_formatted)
+
+    # Apply the EVI calculation
+    cube <- gdalcubes::apply_pixel(data, evi_formula, names = "EVI", keep_bands = FALSE)
+
+    # Log and return the result
+    message("EVI calculated ....")
+    message(gdalcubes::as_json(cube))
+    return(cube)
+  }
+)
+
+#' train_model_rf
+train_model_rf <- Process$new(
+  id = "train_model_rf",
+  description = "Trains a random forest machine learning model using a datacube and training data.",
+  categories = as.array("cubes"),
+  summary = "Train Random Forest Model",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "The datacube to be used for training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "training_data",
+      description = "GeoJSON containing the training data.",
+      schema = list(type = "object"),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "ntree",
+      description = "Number of trees to grow in the random forest model.",
+      schema = list(type = "integer")
+    )
+  ),
+  returns = list(
+    type = "object",
+    description = "The trained random forest model."
+  ),
+  operation = function(aot_cube, training_data, ntree) {
+    # combine training data with EO data
+    extraction <- extract_geom(aot_cube, training_data, df = TRUE)
+    extraction$PolyID <- seq_len(nrow(extraction))
+    extraction <- merge(extraction, training_data, by.x = "PolyID", by.y = "FID")
+
+    # prepare the training data for model training
+    predictors <- c("B02", "B03", "B04", "B08")
+    train_ids <- createDataPartition(extraction$PolyID, p = 0.1, list = FALSE)
+    train_dat <- extraction[train_ids, ]
+    train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+
+    # train the model
+    model <- caret::train(
+      train_dat[, predictors],
+      train_dat$Label,
+      method = "rf",
+      ntree = ntree
+    )
+    return(model)
+  }
+)
+
+#' train_model_knn
+train_model_knn <- Process$new(
+  id = "train_model_knn",
+  description = "Trains a k-nearest neighbor machine learning model using a datacube and training data.",
+  categories = as.array("cubes"),
+  summary = "Train k-Nearest Neighbor Model",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "The datacube to be used for training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "training_data",
+      description = "GeoJSON containing the training data.",
+      schema = list(type = "object"),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "k",
+      description = "Number of nearest neighbors to consider.",
+      schema = list(type = "integer")
+    )
+  ),
+  returns = list(
+    type = "object",
+    description = "The trained k-nearest neighbor model."
+  ),
+  operation = function(aot_cube, training_data, k) {
+    # combine training data with EO data
+    extraction <- extract_geom(aot_cube, training_data, df = TRUE)
+    extraction$PolyID <- seq_len(nrow(extraction))
+    extraction <- merge(extraction, training_data, by.x = "PolyID", by.y = "FID")
+
+    # prepare the training data for model training
+    predictors <- c("B02", "B03", "B04", "B08")
+    train_ids <- createDataPartition(extraction$PolyID, p = 0.1, list = FALSE)
+    train_dat <- extraction[train_ids, ]
+    train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+
+    # train the model
+    model <- caret::train(
+      train_dat[, predictors],
+      train_dat$Label,
+      method = "knn",
+      tuneGrid = data.frame(k = k)
+    )
+    return(model)
   }
 )
