@@ -1399,75 +1399,51 @@ cube_prediction_rf <- Process$new(
   ),
   returns = eo_datacube,
   operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job) {
-    tryCatch({
-      # combine trainingsdata with eo data
-      extraction <- extract_geom(aot_cube, geojson)
-      print("Trainingsdata extracted ....")
 
-      print("Now merging trainingsdata with aoi data ....")
-      # merge trainingsdata with aoi data
-      geojson$PolyID <- seq_len(nrow(geojson))
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      print("Extraction merged with trainingsdata ....")
-    }, error = function(e) {
-      print(paste("An error occurred:", e$message))
-    })
+  # combine trainingsdata with eo data
+  extraction <- gdalcubes::extract_geom(aot_cube, geojson)
+  geojson$PolyID <- seq_len(nrow(geojson))
 
-    tryCatch({
-      print("Now preparing the trainingdata for the modeltraining ....")
-      # prepare the trainingdata for the modeltraining
-      predictors <- c("B02", "B03", "B04", "B08")
-      train_ids <- createDataPartition(extraction$FID, p = 0.9, list = TRUE, times = 1)
-      train_dat <- extraction[train_ids[[1]], ]
-      train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
-      print("Trainingdata prepared ....")
-    }, error = function(e) {
-      print(paste("An error occurred:", e$message))
-    })
+  # extract_geom takes "FID" not "ID"
+  extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+  print("extraction of trainingsdata finished")
 
-    tryCatch({
-      print("Now training the model ....")
-      # train the model
-      model <- caret::train(
-        train_dat[, predictors],
-        train_dat$Label,
-        method = "rf",
-        ntree = ntree
-      )
-      print("Model trained ....")
-      print(paste("Number of trees built:", ntree))
-    }, error = function(e) {
-      print(paste("An error occurred during model training:", e$message))
-    })
+  # prepare the trainingdata for the modeltraining
+  predictors <- c("B02", "B03", "B04", "B08")
+  train_ids <- createDataPartition(extraction$FID, p = 0.9, list = TRUE, times = 1)
+  train_dat <- extraction[train_ids[[1]], ]
+  train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
 
-    tryCatch({
-      print("Now preparing the model for further use in the prediction ....")
-      # prepare the model for further use in the prediction
-      tmp <- tempdir()
-      saveRDS(model, file.path(tmp, "model.rds"))
-      Sys.setenv(TMPDIRPATH = tmp)
-      bands <- c("B02", "B03", "B04", "B08")
-      saveRDS(bands, file.path(tmp, "bands.rds"))
-      print("Model prepared ....")
+  # train the model
+  model <- caret::train(
+    train_dat[, predictors],
+    train_dat$Label,
+    method = "rf",
+    ntree = ntree
+  )
 
-      print("Now predicting the aoi data ....")
-      # predict the aoi data
-      prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                                FUN = function(x) {
-                                  library(caret)
-                                  tmp <- Sys.getenv("TMPDIRPATH")
-                                  model <- readRDS(file.path(tmp, "model.rds"))
-                                  bands <- readRDS(file.path(tmp, "bands.rds"))
-                                  set_bands <- setNames(x, bands)
-                                  predict(object = model, newdata = as.data.frame(t(set_bands))) #nolint
-                                })
-                                
-      message("Prediction calculated ....")
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    }, error = function(e) {
-      print(paste("An error occurred during prediction:", e$message))
-    })
+  print("model training finished")
+
+  tmp <- tempdir()
+  saveRDS(model, paste0(tmp, "/model.rds"))
+  Sys.setenv(TMPDIRPATH = tmp)
+  bands <- names(aoi_cube)
+  saveRDS(bands, paste0(tmp, "/names.rds"))
+
+  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                            FUN = function(x) {
+                              library(caret)
+                              tmp <- Sys.getenv("TMPDIRPATH")
+                              model = readRDS(paste0(tmp, "/model.rds"))
+                              bands = readRDS(paste0(tmp, "/names.rds"))
+                              setBands <- setNames(x, bands)
+                              predict(object = model, newdata = as.data.frame(t(setBands)))
+                            })
+
+    message("Prediction calculated ....")
+    message(gdalcubes::as_json(prediction))
+
+    return(prediction)
   }
 )
 
