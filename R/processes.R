@@ -1212,10 +1212,9 @@ evi <- Process$new(
     blue_formatted <- format_band_name(blue)
 
     # Construct the EVI calculation formula
-    evi_formula <- sprintf("(2.5 * ((%s - %s) /
-    (%s + (6 * %s) - (7.5 * %s)) + 1))",
-                           nir_formatted, red_formatted, nir_formatted,
-                           red_formatted, blue_formatted)
+    evi_formula <- sprintf("(2.5 * ((%s - %s) / (%s + (6 * %s) - (7.5 * %s) + 1)))",
+                 nir_formatted, red_formatted, nir_formatted,
+                 red_formatted, blue_formatted)
 
     # Apply the EVI calculation
     cube <- gdalcubes::apply_pixel(data, evi_formula,
@@ -1228,16 +1227,146 @@ evi <- Process$new(
   }
 )
 
-#' classify_cube_rf
-classify_cube_rf <- Process$new(
-  id = "classify_cube_rf",
-  description = "Trains a random forest machine learning model using a datacube and training data.", #nolint
+#' ndwi
+ndwi <- Process$new(
+  id = "ndwi",
+  description = "Computes the Normalized Difference Water Index (NDWI). The NDWI is computed as (green - nir) / (green + nir).",
   categories = as.array("cubes"),
-  summary = "Train Random Forest Model",
+  summary = "Normalized Difference Water Index",
+  parameters = list(
+    Parameter$new(
+      name = "data",
+      description = "A data cube with bands.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "green",
+      description = "The name of the green band. Defaults to the band that has the common name green assigned.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "nir",
+      description = "The name of the NIR band. Defaults to the band that has the common name nir assigned.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(data, green = "green", nir = "nir", job){
+    # Function to ensure band names are properly formatted
+    format_band_name <- function(band) {
+      if (grepl("^B\\d{2}$", band, ignore.case = TRUE)) {
+        return(toupper(band))
+      } else {
+        return(band)
+      }
+    }
+
+    # Apply formatting to band names
+    green_formatted <- format_band_name(green)
+    nir_formatted <- format_band_name(nir)
+
+    # Construct the NDWI calculation formula
+    ndwi_formula <- sprintf("((%s - %s) / (%s + %s))",
+                            green_formatted,
+                            nir_formatted,
+                            green_formatted,
+                            nir_formatted)
+
+    # Apply the NDWI calculation
+    cube <- gdalcubes::apply_pixel(data, ndwi_formula,
+                                   names = "NDWI", keep_bands = FALSE)
+
+    # Log and return the result
+    message("NDWI calculated ....")
+    message(gdalcubes::as_json(cube))
+    return(cube)
+  }
+)
+
+#' ndbi
+ndbi <- Process$new(
+  id = "ndbi",
+  description = "Computes the Normalized Difference Built-up Index (NDBI). The NDBI is computed as (SWIR - NIR) / (SWIR + NIR).",
+  categories = as.array("cubes"),
+  summary = "Normalized Difference Built-up Index",
+  parameters = list(
+    Parameter$new(
+      name = "data",
+      description = "A data cube with bands.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "swir",
+      description = "The name of the SWIR band. Defaults to the band that has the common name swir assigned.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "nir",
+      description = "The name of the NIR band. Defaults to the band that has the common name nir assigned.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(data, swir = "swir", nir = "nir", job){
+    # Function to ensure band names are properly formatted
+    format_band_name <- function(band) {
+      if (grepl("^B\\d{2}$", band, ignore.case = TRUE)) {
+        return(toupper(band))
+      } else {
+        return(band)
+      }
+    }
+
+    # Apply formatting to band names
+    swir_formatted <- format_band_name(swir)
+    nir_formatted <- format_band_name(nir)
+
+    # Construct the NDBI calculation formula
+    ndbi_formula <- sprintf("((%s - %s) / (%s + %s))",
+                            swir_formatted,
+                            nir_formatted,
+                            swir_formatted,
+                            nir_formatted)
+
+    # Apply the NDBI calculation
+    cube <- gdalcubes::apply_pixel(data, ndbi_formula,
+                                   names = "NDBI", keep_bands = FALSE)
+
+    # Log and return the result
+    message("NDBI calculated ....")
+    message(gdalcubes::as_json(cube))
+    return(cube)
+  }
+)
+
+#' cube_prediction_rf
+cube_prediction_rf <- Process$new(
+  id = "cube_prediction_rf",
+  description = "Classifies a data cube using a Random Forest Algorithm and Trainingsdata as GeoJSON.",
+  categories = as.array("cubes"),
+  summary = "Classify a data cube using a Random Forest Algorithm",
   parameters = list(
     Parameter$new(
       name = "aoi_cube",
-      description = "The datacube to classify on (area of interest).",
+      description = "A data cube with extent of area of interest.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
@@ -1245,38 +1374,50 @@ classify_cube_rf <- Process$new(
     ),
     Parameter$new(
       name = "aot_cube",
-      description = "The datacube to be used for training.",
+      description = "A data cube with extent of the area of training.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
       )
     ),
     Parameter$new(
-      name = "training_data",
-      description = "GeoJSON containing the training data.",
-      schema = list(type = "object"),
-      optional = TRUE
+      name = "geojson",
+      description = "A GeoJSON with training data.",
+      schema = list(
+        type = "object"
+      ),
+      optional = FALSE
     ),
     Parameter$new(
       name = "ntree",
-      description = "Number of trees to grow in the random forest model.",
-      schema = list(type = "integer")
+      description = "Number of trees to grow in random forest.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
     )
   ),
   returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, training_data, ntree) {
-    # combine training data with EO data
-    extraction <- extract_geom(aot_cube, training_data, df = TRUE)
-    extraction$PolyID <- seq_len(nrow(extraction))
-    extraction <- merge(extraction, training_data,
-                        by.x = "PolyID", by.y = "FID")
+  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job) {
+    # combine trainingsdata with eo data
+    extraction <- extract_geom(aot_cube, geojson)
+    print("Trainingsdata extracted ....")
 
-    # prepare the training data for model training
+    print("Now merging trainingsdata with aoi data ....")
+    # merge trainingsdata with aoi data
+    geojson$PolyID <- seq_len(nrow(geojson))
+    extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+    print("Extraction merged with trainingsdata ....")
+
+    print("Now preparing the trainingdata for the modeltraining ....")
+    # prepare the trainingdata for the modeltraining
     predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extraction$PolyID, p = 0.9, list = FALSE)
-    train_dat <- extraction[train_ids, ]
+    train_ids <- createDataPartition(extraction$FID, p = 0.9, list = TRUE, times = 1)
+    train_dat <- extraction[train_ids[[1]], ]
     train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+    print("Trainingdata prepared ....")
 
+    print("Now training the model ....")
     # train the model
     model <- caret::train(
       train_dat[, predictors],
@@ -1284,30 +1425,44 @@ classify_cube_rf <- Process$new(
       method = "rf",
       ntree = ntree
     )
+    print("Model trained ....")
+    print(paste("Number of trees built:", ntree))
 
-    # predict the model using apply_pixel function
-    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                              FUN = function(aoi_cube){
-                                predict(aoi_cube, model)
+    print("Now preparing the model for further use in the prediction ....")
+    # prepare the model for further use in the prediction
+    tmp <- tempdir()
+    saveRDS(model, file.path(tmp, "model.rds"))
+    Sys.setenv(TMPDIRPATH = tmp)
+    bands <- c("B02", "B03", "B04", "B08")
+    saveRDS(bands, file.path(tmp, "bands.rds"))
+    print("Model prepared ....")
+
+    print("Now predicting the aoi data ....")
+    # predict the aoi data
+    prediction <- apply_pixel(aoi_cube, names = "prediction",
+                              FUN = function(x) {
+                                library(caret)
+                                tmp <- Sys.getenv("TMPDIRPATH")
+                                model <- readRDS(file.path(tmp, "model.rds"))
+                                bands <- readRDS(file.path(tmp, "bands.rds"))
+                                set_bands <- setNames(x, bands)
+                                predict(object = model, newdata = as.data.frame(t(set_bands))) #nolint
                               })
-
-    message("rf model calculated and AoI classified....")
-    message(gdalcubes::as_json(cube))
-
-    return(prediction)
+    message("Prediction calculated ....")
+    message(gdalcubes::as_json(prediction))
   }
 )
 
-#' classify_cube_knn
-classify_cube_knn <- Process$new(
-  id = "classify_cube_knn",
-  description = "Trains a k-nearest neighbor machine learning model using a datacube and training data.", #nolint
+#' cube_prediction_knn
+cube_prediction_knn <- Process$new(
+  id = "cube_prediction_knn",
+  description = "Classifies a data cube using a k-Nearest Neighbor Algorithm and Trainingsdata as GeoJSON.",
   categories = as.array("cubes"),
-  summary = "Train k-nearest neighbor model and classify",
+  summary = "Classify a data cube using a k-Nearest Neighbor Algorithm",
   parameters = list(
     Parameter$new(
       name = "aoi_cube",
-      description = "The datacube to classify on (area of interest).",
+      description = "A data cube with extent of area of interest.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
@@ -1315,56 +1470,81 @@ classify_cube_knn <- Process$new(
     ),
     Parameter$new(
       name = "aot_cube",
-      description = "The datacube to be used for training.",
+      description = "A data cube with extent of the area of training.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
       )
     ),
     Parameter$new(
-      name = "training_data",
-      description = "GeoJSON containing the training data.",
-      schema = list(type = "object"),
-      optional = TRUE
+      name = "geojson",
+      description = "A GeoJSON with training data.",
+      schema = list(
+        type = "object"
+      ),
+      optional = FALSE
     ),
     Parameter$new(
       name = "k",
-      description = "Number of neighbors to be considered in the model.",
-      schema = list(type = "integer")
+      description = "Number of nearest neighbors to consider.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
     )
   ),
   returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, training_data, k) {
-    # combine training data with EO data
-    extraction <- extract_geom(aot_cube, training_data, df = TRUE)
-    extraction$PolyID <- seq_len(nrow(extraction))
-    extraction <- merge(extraction, training_data,
-                        by.x = "PolyID", by.y = "FID")
+  operation = function(aoi_cube, aot_cube, geojson, k = 10, job) {
+    # combine trainingsdata with eo data
+    extraction <- extract_geom(aot_cube, geojson)
+    print("Trainingsdata extracted ....")
 
-    # prepare the training data for model training
+    print("Now merging trainingsdata with aoi data ....")
+    # merge trainingsdata with aoi data
+    geojson$PolyID <- seq_len(nrow(geojson))
+    extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+    print("Extraction merged with trainingsdata ....")
+
+    print("Now preparing the trainingdata for the modeltraining ....")
+    # prepare the trainingdata for the modeltraining
     predictors <- c("B02", "B03", "B04", "B08")
-    train_ids <- createDataPartition(extraction$PolyID, p = 0.9, list = FALSE)
-    train_dat <- extraction[train_ids, ]
+    train_ids <- createDataPartition(extraction$FID, p = 0.9, list = TRUE, times = 1)
+    train_dat <- extraction[train_ids[[1]], ]
     train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+    print("Trainingdata prepared ....")
 
+    print("Now training the model ....")
     # train the model
     model <- caret::train(
       train_dat[, predictors],
       train_dat$Label,
       method = "knn",
-      tuneLength = k
+      k = k
     )
+    print("Model trained ....")
+    print(paste("Number of k neighbors considered:", k))
 
-    # predict the model using apply_pixel function
-    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                              FUN = function(aoi_cube){
-                                predict(aoi_cube, model)
+    print("Now preparing the model for further use in the prediction ....")
+    # prepare the model for further use in the prediction
+    tmp <- tempdir()
+    saveRDS(model, file.path(tmp, "model.rds"))
+    Sys.setenv(TMPDIRPATH = tmp)
+    bands <- c("B02", "B03", "B04", "B08")
+    saveRDS(bands, file.path(tmp, "bands.rds"))
+    print("Model prepared ....")
+
+    print("Now predicting the aoi data ....")
+    # predict the aoi data
+    prediction <- apply_pixel(aoi_cube, names = "prediction",
+                              FUN = function(x) {
+                                library(caret)
+                                tmp <- Sys.getenv("TMPDIRPATH")
+                                model <- readRDS(file.path(tmp, "model.rds"))
+                                bands <- readRDS(file.path(tmp, "bands.rds"))
+                                set_bands <- setNames(x, bands)
+                                predict(object = model, newdata = as.data.frame(t(set_bands))) #nolint
                               })
-
-    message("knn model calculated and AoI classified....")
-    message(gdalcubes::as_json(cube))
-
-    return(prediction)
+    message("Prediction calculated ....")
+    message(gdalcubes::as_json(prediction))
   }
 )
-
