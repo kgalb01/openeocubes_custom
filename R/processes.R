@@ -6,6 +6,7 @@
 #' @import useful
 #' @import sf
 #' @import caret
+#' @import terra
 NULL
 
 #' schema_format
