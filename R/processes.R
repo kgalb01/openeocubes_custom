@@ -1,12 +1,12 @@
 #' cube processes openEO standards mapped to gdalcubes processes
 #'
 #' @include Process-class.R
+#' @import terra
 #' @import gdalcubes
 #' @import rstac
 #' @import useful
 #' @import sf
 #' @import caret
-#' @import terra
 NULL
 
 #' schema_format
@@ -1503,7 +1503,7 @@ prediction <- Process$new(
                                             model <- readRDS(paste0(tmp, "model.rds"))
                                             bands <- readRDS(paste0(tmp, "bands.rds"))
                                             bands <- setNames(x, bands)
-                                            predict(object = model, newdata = as.data.frame(t(bands)))
+                                            predict(object = model, newdata = as.data.frame(t(set_bands)))
                                           })
 
       message("Prediction calculated ....")
