@@ -66,7 +66,17 @@ SessionConfig = function(api.port = NULL, host = NULL, aws.ipv4 = NULL) {
             description = "NetCDF"
           )
         )
-
+      ),
+      RDS = list(
+        title = "RDS",
+        description = "Export to RDS",
+        gis_data_types = list("raster"),
+        parameters = list(
+          format = list(
+            type = "string",
+            description = "RDS"
+          )
+        )
       )
     ),
     inputFormats = list(

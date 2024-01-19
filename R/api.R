@@ -172,6 +172,9 @@ NULL
     else if (format$title == "GeoTiff") {
       file = gdalcubes::write_tif(job$results)
     }
+    else if (format$title == "RDS") {
+      file = saveRDS(job$results, file = "output.RDS")
+    }
     else {
       throwError("FormatUnsupported")
     }
@@ -182,6 +185,9 @@ NULL
     }
     else if (format == "GTiff") {
       file = gdalcubes::write_tif(job$results)
+    }
+    else if (format == "RDS") {
+      file = saveRDS(job$results, file = "output.RDS")
     }
     else {
       throwError("FormatUnsupported")
@@ -314,9 +320,12 @@ addEndpoint = function() {
   Session$assignProcess(subtract)
   Session$assignProcess(multiply)
   Session$assignProcess(divide)
-  Session$assignProcess(evi)
   Session$assignProcess(ndwi)
   Session$assignProcess(ndbi)
   Session$assignProcess(cube_prediction_rf)
   Session$assignProcess(cube_prediction_knn)
+  Session$assignProcess(extract_data)
+  Session$assignProcess(train_model_rf)
+  Session$assignProcess(train_model_knn)
+  Session$assignProcess(prediction)
 }

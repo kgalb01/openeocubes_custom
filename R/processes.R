@@ -1146,87 +1146,6 @@ save_result <- Process$new(
 ######################## FROM THIS POINT ON THE CODE IS FROM US ########################
 ##################################  TERRA CLASSIFIER ##################################
 ######################################################################################
-
-#' evi
-evi <- Process$new(
-  id = "evi",
-  description = "Computes the Enhanced Vegetation Index (EVI). The EVI is computed as 2.5 * ((nir - red) / (nir + 6 * red - 7.5 * blue + 1)).",
-  categories = as.array("cubes"),
-  summary = "Enhanced Vegetation Index",
-  parameters = list(
-    Parameter$new(
-      name = "data",
-      description = "A data cube with bands.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "nir",
-      description = "The name of the NIR band. Defaults to the band that has the common name nir assigned..",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "red",
-      description = "The name of the red band. Defaults to the band that has the common name red assigned.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "blue",
-      description = "The name of the blue band. Defaults to the band that has the common name blue assigned.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "target_band",
-      description = "By default, the dimension of type bands is dropped. To keep the dimension specify a new band name in this parameter so that a new dimension label with the specified name will be added for the computed values.",
-      schema = list(
-        type = "string"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(data, nir = "nir", red = "red", blue = "blue", target_band = NULL, job){
-    # Function to ensure band names are properly formatted
-    format_band_name <- function(band) {
-      if (grepl("^B\\d{2}$", band, ignore.case = TRUE)) {
-        return(toupper(band))
-      } else {
-        return(band)
-      }
-    }
-
-    # Apply formatting to band names
-    nir_formatted <- format_band_name(nir)
-    red_formatted <- format_band_name(red)
-    blue_formatted <- format_band_name(blue)
-
-    # Construct the EVI calculation formula
-    evi_formula <- sprintf("(2.5 * ((%s - %s) / (%s + (6 * %s) - (7.5 * %s) + 1)))",
-                 nir_formatted, red_formatted, nir_formatted,
-                 red_formatted, blue_formatted)
-
-    # Apply the EVI calculation
-    cube <- gdalcubes::apply_pixel(data, evi_formula,
-                                   names = "EVI", keep_bands = FALSE)
-
-    # Log and return the result
-    message("EVI calculated ....")
-    message(gdalcubes::as_json(cube))
-    return(cube)
-  }
-)
-
 #' ndwi
 ndwi <- Process$new(
   id = "ndwi",
@@ -1399,51 +1318,77 @@ cube_prediction_rf <- Process$new(
   ),
   returns = eo_datacube,
   operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job) {
+  tryCatch({
+    print("Beginning the process . . . .")
+    # combine trainingsdata with eo data
+    extraction <- extract_geom(aot_cube, geojson, df = TRUE)
+    geojson$PolyID <- 1:nrow(geojson)
+    print("Trainingsdata extracted ....")
 
-  # combine trainingsdata with eo data
-  extraction <- gdalcubes::extract_geom(aot_cube, geojson)
-  geojson$PolyID <- seq_len(nrow(geojson))
+    print("Now merging trainingsdata with aoi data ....")
+    # extract_geom takes "FID" not "ID"
+    extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+    print("Extraction merged with trainingsdata ....")
+  }, error = function(e) {
+    message("An error occurred during the extraction: ", conditionMessage(e))
+  })
 
-  # extract_geom takes "FID" not "ID"
-  extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-  print("extraction of trainingsdata finished")
+  tryCatch({
+    print("Now preparing the trainingdata for the modeltraining ....")
+    # prepare the trainingdata for the modeltraining
+    predictors <- names(aoi_cube)
+    train_ids <- createDataPartition(extraction$FID, p = 0.1, list = FALSE)
+    train_dat <- extraction[train_ids,]
+    train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+    print("Trainingdata prepared ....")
+  }, error = function(e) {
+    message("An error occurred during the preparation of training data: ", conditionMessage(e))
+  })
 
-  # prepare the trainingdata for the modeltraining
-  predictors <- c("B02", "B03", "B04", "B08")
-  train_ids <- createDataPartition(extraction$FID, p = 0.9, list = TRUE, times = 1)
-  train_dat <- extraction[train_ids[[1]], ]
-  train_dat <- train_dat[complete.cases(train_dat[, predictors]), ]
+  tryCatch({
+    print("Now training the model ....")
+    # train the model
+    model <- caret::train(
+      train_dat[, predictors],
+      train_dat$Label,
+      method = "rf",
+      ntree = ntree
+    )
+      print("Model trained ....")
+      print(paste("Number of trees build:", ntree))
+  }, error = function(e) {
+    message("An error occurred during model training: ", conditionMessage(e))
+  })
 
-  # train the model
-  model <- caret::train(
-    train_dat[, predictors],
-    train_dat$Label,
-    method = "rf",
-    ntree = ntree
-  )
-
-  print("model training finished")
-
-  tmp <- tempdir()
-  saveRDS(model, paste0(tmp, "/model.rds"))
-  Sys.setenv(TMPDIRPATH = tmp)
-  bands <- names(aoi_cube)
-  saveRDS(bands, paste0(tmp, "/names.rds"))
-
-  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                            FUN = function(x) {
-                              library(caret)
-                              tmp <- Sys.getenv("TMPDIRPATH")
-                              model = readRDS(paste0(tmp, "/model.rds"))
-                              bands = readRDS(paste0(tmp, "/names.rds"))
-                              setBands <- setNames(x, bands)
-                              predict(object = model, newdata = as.data.frame(t(setBands)))
-                            })
+  tryCatch({
+    print("Now preparing the model for further use in the prediction ....")
+    # creating a temporary directory to save the model and the bands
+    tmp <- tempdir()
+    saveRDS(model, paste0(tmp, "/model.rds"))
+    print("Model in saved temporary directory ....")
+    Sys.setenv(TMPDIRPATH = tmp)
+    bands <- names(aoi_cube)
+    saveRDS(bands, paste0(tmp, "/names.rds"))
+    print("Bands in saved temporary directory ....")
+    print("Model prepared ....")
+    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                                        FUN = function(x) {
+                                          library(caret)
+                                          tmp <- Sys.getenv("TMPDIRPATH")
+                                          model = readRDS(paste0(tmp, "/model.rds"))
+                                          bands = readRDS(paste0(tmp, "/names.rds"))
+                                          setBands <- setNames(x, bands)
+                                          predict(object = model, newdata = as.data.frame(t(setBands)))
+                                        })
 
     message("Prediction calculated ....")
     message(gdalcubes::as_json(prediction))
 
     return(prediction)
+  }, error = function(e) {
+    message("An error occurred during the prediction: ", conditionMessage(e))
+    return(aoi_cube)
+  })
   }
 )
 
@@ -1530,36 +1475,282 @@ cube_prediction_knn <- Process$new(
       print(paste("An error occurred during model training:", e$message))
     })
 
+  tryCatch({
+    print("Now preparing the model for further use in the prediction ....")
+    # creating a temporary directory to save the model and the bands
+    tmp <- tempdir()
+    saveRDS(model, paste0(tmp, "/model.rds"))
+    print("Model in saved temporary directory ....")
+    Sys.setenv(TMPDIRPATH = tmp)
+    bands <- names(aoi_cube)
+    saveRDS(bands, paste0(tmp, "/names.rds"))
+    print("Bands in saved temporary directory ....")
+    print("Model prepared ....")
+    prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                                        FUN = function(x) {
+                                          library(caret)
+                                          tmp <- Sys.getenv("TMPDIRPATH")
+                                          model = readRDS(paste0(tmp, "/model.rds"))
+                                          bands = readRDS(paste0(tmp, "/names.rds"))
+                                          setBands <- setNames(x, bands)
+                                          predict(object = model, newdata = as.data.frame(t(setBands)))
+                                        })
+
+    message("Prediction calculated ....")
+    message(gdalcubes::as_json(prediction))
+
+    return(prediction)
+  }, error = function(e) {
+    message("An error occurred during the prediction: ", conditionMessage(e))
+    return(aoi_cube)
+  })
+  }
+)
+
+#########################################################################################
+####################### FROM THIS POINT ON THE CODE IS FOR TESTS #######################
+##################################  TERRA CLASSIFIER ##################################
+######################################################################################
+
+#' extract_data
+extract_data <- Process$new(
+  id = "extract_data",
+  description = "Extracts data from a data cube using a GeoJSON file.",
+  categories = as.array("cubes"),
+  summary = "Extract data from a data cube using a GeoJSON file",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube with extent of the area of training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A GeoJSON with training data.",
+      schema = list(
+        type = "object"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = list(
+    description = "The extracted data with merged trainingsdata.",
+    schema = list(description = "Data frame with merged trainingsdata.")
+  ),
+  operation = function(aot_cube, geojson, job) {
+    tryCatch({
+      print("Beginning the extraction process . . . .")
+      # combine trainingsdata with eo data
+      extraction <- extract_geom(aot_cube, geojson, df = TRUE)
+      geojson$PolyID <- 1:nrow(geojson)
+      print("Trainingsdata extracted ....")
+
+      print("Now merging trainingsdata with aoi data ....")
+      # extract_geom takes "FID" not "ID"
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      print("Extraction merged with trainingsdata ....")
+
+      return(extraction)
+    }, error = function(e) {
+      message("An error occurred during the extraction: ", conditionMessage(e))
+      return(NULL)
+    })
+  }
+)
+
+#' train_model_rf
+train_model_rf <- Process$new(
+  id = "train_model_rf",
+  description = "Trains a model using a Random Forest Algorithm.",
+  categories = as.array("cubes"),
+  summary = "Train a model using Random Forest Algorithm",
+  parameters = list(
+    Parameter$new(
+      name = "extraction",
+      description = "Data extracted from a data cube with training data.",
+      schema = list(
+        type = "object"
+      )
+    ),
+    Parameter$new(
+      name = "aoi_cube",
+      description = "A data cube with extent of area of interest.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "ntree",
+      description = "Number of trees in the random forest.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    )
+  ),
+  returns = list(
+    description = "The trained model.",
+    schema = list(description = "A model object.")
+  ),
+  operation = function(extraction, aoi_cube, ntree = 50, job) {
+    tryCatch({
+      print("Now preparing the trainingdata for the modeltraining ....")
+      # prepare the trainingdata for the modeltraining
+      predictors <- names(aoi_cube)
+      train_dat <- extraction[complete.cases(extraction[, predictors]), ]
+      print("Trainingdata prepared ....")
+    }, error = function(e) {
+      message("An error occurred during the preparation of training data: ", conditionMessage(e))
+    })
+
+    tryCatch({
+      print("Now training the model ....")
+      # train the model
+      model <- caret::train(
+        train_dat[, predictors],
+        train_dat$Label,
+        method = "rf",
+        ntree = ntree
+      )
+      print("Model trained ....")
+      print(paste("Number of trees build:", ntree))
+    }, error = function(e) {
+      message("An error occurred during model training: ", conditionMessage(e))
+    })
+
+    return(model)
+  }
+)
+
+#' train_model_knn
+train_model_knn <- Process$new(
+  id = "train_model_knn",
+  description = "Trains a model using the k-Nearest Neighbor Algorithm.",
+  categories = as.array("cubes"),
+  summary = "Train a model using k-Nearest Neighbor Algorithm",
+  parameters = list(
+    Parameter$new(
+      name = "extraction",
+      description = "Data extracted from a data cube with training data.",
+      schema = list(
+        type = "object"
+      )
+    ),
+    Parameter$new(
+      name = "aoi_cube",
+      description = "A data cube with extent of area of interest.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "k",
+      description = "Number of neighbors to consider in the k-Nearest Neighbor algorithm.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    )
+  ),
+  returns = list(
+    description = "The trained model.",
+    schema = list(description = "A model object.")
+  ),
+  operation = function(extraction, aoi_cube, k = 10, job) {
+    tryCatch({
+      print("Now preparing the trainingdata for the modeltraining ....")
+      # prepare the trainingdata for the modeltraining
+      predictors <- names(aoi_cube)
+      train_dat <- extraction[complete.cases(extraction[, predictors]), ]
+      print("Trainingdata prepared ....")
+    }, error = function(e) {
+      message("An error occurred during the preparation of training data: ", conditionMessage(e))
+    })
+
+    tryCatch({
+      print("Now training the model ....")
+      # train the model
+      model <- caret::train(
+        train_dat[, predictors],
+        train_dat$Label,
+        method = "knn",
+        tuneLength = k
+      )
+      print("Model trained ....")
+      print(paste("Number of neighbors considered during training:", ntree))
+    }, error = function(e) {
+      message("An error occurred during model training: ", conditionMessage(e))
+    })
+
+    return(model)
+  }
+)
+
+#' prediction
+prediction <- Process$new(
+  id = "prediction",
+  description = "Performs prediction using a trained model on a data cube.",
+  categories = as.array("cubes"),
+  summary = "Perform prediction using a trained model on a data cube",
+  parameters = list(
+    Parameter$new(
+      name = "extraction",
+      description = "Data extracted from a data cube with training data.",
+      schema = list(
+        type = "object"
+      )
+    ),
+    Parameter$new(
+      name = "model",
+      description = "A trained model object.",
+      schema = list(
+        type = "object"
+      )
+    ),
+    Parameter$new(
+      name = "aoi_cube",
+      description = "A data cube with extent of area of interest.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(extraction, model, aoi_cube, job) {
     tryCatch({
       print("Now preparing the model for further use in the prediction ....")
-      # prepare the model for further use in the prediction
+      # creating a temporary directory to save the model and the bands
       tmp <- tempdir()
-      saveRDS(model, file.path(tmp, "model.rds"))
+      saveRDS(model, paste0(tmp, "/model.rds"))
+      print("Model in saved temporary directory ....")
       Sys.setenv(TMPDIRPATH = tmp)
-      bands <- c("B02", "B03", "B04", "B08")
-      saveRDS(bands, file.path(tmp, "bands.rds"))
+      bands <- names(aoi_cube)
+      saveRDS(bands, paste0(tmp, "/names.rds"))
+      print("Bands in saved temporary directory ....")
       print("Model prepared ....")
-
-      print("Now predicting the aoi data ....")
-      # predict the aoi data
       prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                                           FUN = function(x) {
-                                             tryCatch({
-                                               library(caret)
-                                               tmp <- Sys.getenv("TMPDIRPATH")
-                                               model <- readRDS(file.path(tmp, "model.rds"))
-                                               bands <- readRDS(file.path(tmp, "bands.rds"))
-                                               set_bands <- setNames(x, bands)
-                                               predict(object = model, newdata = as.data.frame(t(set_bands))) #nolint
-                                             }, error = function(e) {
-                                               print(paste("An error occurred during prediction:", e$message))
-                                             })
-                                           })
+                                          FUN = function(x) {
+                                            library(caret)
+                                            tmp <- Sys.getenv("TMPDIRPATH")
+                                            model = readRDS(paste0(tmp, "/model.rds"))
+                                            bands = readRDS(paste0(tmp, "/names.rds"))
+                                            setBands <- setNames(x, bands)
+                                            predict(object = model, newdata = as.data.frame(t(setBands)))
+                                          })
+
       message("Prediction calculated ....")
       message(gdalcubes::as_json(prediction))
+
       return(prediction)
     }, error = function(e) {
-      print(paste("An error occurred during model preparation and prediction:", e$message))
+      message("An error occurred during the prediction: ", conditionMessage(e))
+      return(aoi_cube)
     })
   }
 )
