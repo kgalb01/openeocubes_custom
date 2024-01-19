@@ -322,8 +322,6 @@ addEndpoint = function() {
   Session$assignProcess(divide)
   Session$assignProcess(ndwi)
   Session$assignProcess(ndbi)
-  Session$assignProcess(cube_prediction_rf)
-  Session$assignProcess(cube_prediction_knn)
   Session$assignProcess(train_model_rf)
   Session$assignProcess(train_model_knn)
   Session$assignProcess(prediction)
