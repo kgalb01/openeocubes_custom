@@ -86,6 +86,10 @@ load_collection <- Process$new(
             south = list(
               description = "South (lower left corner, coordinate axis 2).",
               type = "number"
+            ),
+            crs = list(
+              description = "Coordinate Reference System, default = 4326 .",
+              type = "number"
             )
           ),
           required = c("east", "west", "south", "north")
@@ -101,15 +105,6 @@ load_collection <- Process$new(
           type = "null"
         )
       )
-    ),
-    Parameter$new(
-      name = "crs",
-      description = "Coordinate Reference System, default = 4326",
-      schema = list(
-        type = "number",
-        subtype = "epsg-code"
-      ),
-      optional = TRUE
     ),
     Parameter$new(
       name = "temporal_extent",
@@ -129,30 +124,33 @@ load_collection <- Process$new(
     )
   ),
   returns = eo_datacube,
-  operation = function(id, spatial_extent, crs = 4326, temporal_extent, bands = NULL, job) {
-    # temporal extent preprocess
-    t0 <- temporal_extent[[1]]
-    t1 <- temporal_extent[[2]]
-    duration <- c(t0, t1)
-    time_range <- paste(duration, collapse = "/")
-    message("....After Temporal extent")
+  operation = function(id, spatial_extent, temporal_extent, bands = NULL, job) {
+    # Check if 'crs' is present in spatial_extent and convert it to numeric; if missing, default to 4326
+    crs <- ifelse("crs" %in% names(spatial_extent), as.numeric(spatial_extent$crs), 4326)
+    message("crs is : ", crs)
+
+    # Temporal extent preprocess
+    t0 = temporal_extent[[1]]
+    t1 = temporal_extent[[2]]
+    duration = c(t0, t1)
+    time_range = paste(duration, collapse = "/")
+    message("After Temporal extent: ", time_range)
 
     # spatial extent for cube view
-    xmin <- as.numeric(spatial_extent$west)
-    ymin <- as.numeric(spatial_extent$south)
-    xmax <- as.numeric(spatial_extent$east)
-    ymax <- as.numeric(spatial_extent$north)
-    message("...After Spatial extent")
+    xmin = as.numeric(spatial_extent$west)
+    ymin = as.numeric(spatial_extent$south)
+    xmax = as.numeric(spatial_extent$east)
+    ymax = as.numeric(spatial_extent$north)
+    message("After Spatial extent ...")
 
-    # spatial extent for STAC API call
-    xmin_stac <- xmin
-    ymin_stac <- ymin
-    xmax_stac <- xmax
-    ymax_stac <- ymax
-    message("....After default Spatial extent for STAC")
-
+    # spatial extent for stac call
+    xmin_stac = xmin
+    ymin_stac = ymin
+    xmax_stac = xmax
+    ymax_stac = ymax
+    message("After default Spatial extent for stac..")
     if (crs != 4326) {
-      message("....crs is not 4326")
+      message("crs is not 4326...")
       min_pt <- sf::st_sfc(st_point(c(xmin, ymin)), crs = crs)
       min_pt <- sf::st_transform(min_pt, crs = 4326)
       min_bbx <- sf::st_bbox(min_pt)
@@ -163,190 +161,41 @@ load_collection <- Process$new(
       max_bbx <- sf::st_bbox(max_pt)
       xmax_stac <- max_bbx$xmax
       ymax_stac <- max_bbx$ymax
-
-      message("....transformed to 4326")
+      message("Transformed to 4326...")
     }
 
-    # connect to STAC API using rstac and get satellite data
-    message("STAC API call.....")
-    stac_object <- rstac::stac("https://earth-search.aws.element84.com/v0")
+    # Connect to STAC API and get satellite data
+    message("STAC API call....")
+    stac_object <- stac("https://earth-search.aws.element84.com/v0")
     items <- stac_object %>%
       stac_search(
         collections = id,
         bbox = c(xmin_stac, ymin_stac, xmax_stac, ymax_stac),
-        datetime = time_range,
+        datetime =  time_range,
         limit = 10000
       ) %>%
       post_request() %>%
       items_fetch()
-
-    # create image collection from STAC items features
-    img.col <- gdalcubes::stac_image_collection(items$features,
-                                                property_filter =
-                                                  function(x) {
-                                                    x[["eo:cloud_cover"]] < 30
-                                                  }
-    )
-
-    # Define cube view with bi weekly aggregation
+    # create image collection from stac items features
+    img.col <- stac_image_collection(items$features, property_filter =
+                                       function(x) {x[["eo:cloud_cover"]] < 30})
+    message("Image collection: ", img.col)
+    # Define cube view with monthly aggregation
     crs <- c("EPSG", crs)
     crs <- paste(crs, collapse = ":")
-    v.overview <- gdalcubes::cube_view(
-      srs = crs, dx = 30, dy = 30, dt = "P15D",
-      aggregation = "median", resampling = "average",
-      extent = list(
-        t0 = t0, t1 = t1,
-        left = xmin, right = xmax,
-        top = ymax, bottom = ymin
-      )
-    )
-
-    # data cube creation
-    cube <- gdalcubes::raster_cube(img.col, v.overview)
+    v.overview <- cube_view(srs = crs, dx = 30, dy = 30, dt = "P1M",
+                            aggregation = "median", resampling = "average",
+                            extent = list(t0 = t0, t1 = t1,
+                                        left = xmin, right = xmax,
+                                        top = ymax, bottom = ymin))
+    # gdalcubes creation
+    cube <- raster_cube(img.col, v.overview)
 
     if (!is.null(bands)) {
-      cube <- gdalcubes::select_bands(cube, bands)
+      cube = select_bands(cube, bands)
     }
-
-    message("The data cube is created....")
-    message(gdalcubes::as_json(cube))
-    return(cube)
-  }
-)
-
-
-#' load stac
-load_stac <- Process$new(
-  id = "load_stac",
-  description = "Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable data cube",
-  categories = as.array("cubes", "import"),
-  summary = "Loads data from STAC",
-  parameters = list(
-    Parameter$new(
-      name = "url",
-      description = "The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection that allows to filter items and to download assets",
-      schema = list(
-        type = "string"
-      )
-    ),
-    Parameter$new(
-      name = "spatial_extent",
-      description = "Limits the data to load from the collection to the specified bounding box",
-      schema = list(
-        list(
-          title = "Bounding box",
-          type = "object",
-          subtype = "bounding-box",
-          properties = list(
-            east = list(
-              description = "East (upper right corner, coordinate axis 1).",
-              type = "number"
-            ),
-            west = list(
-              description = "West lower left corner, coordinate axis 1).",
-              type = "number"
-            ),
-            north = list(
-              description = "North (upper right corner, coordinate axis 2).",
-              type = "number"
-            ),
-            south = list(
-              description = "South (lower left corner, coordinate axis 2).",
-              type = "number"
-            )
-          ),
-          required = c("east", "west", "south", "north")
-        ),
-        list(
-          title = "GeoJson",
-          type = "object",
-          subtype = "geojson"
-        ),
-        list(
-          title = "No filter",
-          description = "Don't filter spatially. All data is included in the data cube.",
-          type = "null"
-        )
-      )
-    ),
-    Parameter$new(
-      name = "temporal_extent",
-      description = "Limits the data to load from the collection to the specified left-closed temporal interval.",
-      schema = list(
-        type = "array",
-        subtype = "temporal-interval"
-      )
-    ),
-    Parameter$new(
-      name = "bands",
-      description = "Only adds the specified bands into the data cube so that bands that don't match the list of band names are not available.",
-      schema = list(
-        type = "array"
-      ),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "properties",
-      description = "Limits the data by metadata properties to include only data in the data cube which all given conditions return true for (AND operation).",
-      schema = list(
-        type = "array"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(url, spatial_extent, temporal_extent, bands = NULL, properties = NULL, job) {
-
-    # temporal extent preprocess
-    duration <- paste(temporal_extent[[1]], temporal_extent[[2]], collapse = "/")
-
-    # spatial extent for cube view
-    xmin <- as.numeric(spatial_extent$west)
-    ymin <- as.numeric(spatial_extent$south)
-    xmax <- as.numeric(spatial_extent$east)
-    ymax <- as.numeric(spatial_extent$north)
-
-    # get STAC catalog metadata
-    stac_metadata <- rstac::stac(url) %>%
-      rstac::get_request()
-
-    stac_base_url <- stac_metadata$links[[4]]$href
-    id <- stac_metadata$id
-
-    # connect to STAC API using rstac and get satellite data
-    stac_object <- rstac::stac(stac_base_url)
-    items <- stac_object %>%
-      rstac::stac_search(
-        collections = id,
-        bbox = c(xmin, ymin, xmax, ymax),
-        datetime = duration,
-        limit = 10000
-      ) %>%
-      rstac::post_request() %>%
-      rstac::items_fetch()
-
-    # create image collection from STAC items features
-    img_col <- gdalcubes::stac_image_collection(items$features)
-
-    # define cube view with monthly aggregation
-    cube_view <- gdalcubes::cube_view(
-      srs = "EPSG:4326", dx = 30, dy = 30, dt = "P1M",
-      aggregation = "median", resampling = "average",
-      extent = list(
-        t0 = temporal_extent[[1]], t1 = temporal_extent[[2]],
-        left = xmin, right = xmax,
-        top = ymax, bottom = ymin
-      )
-    )
-
-    # create data cube
-    cube <- gdalcubes::raster_cube(img_col, cube_view)
-
-    if (!is.null(bands)) {
-      cube <- gdalcubes::select_bands(cube, bands)
-    }
-
-    message(gdalcubes::as_json(cube))
+    message("data cube is created: ")
+    message(as_json(cube))
     return(cube)
   }
 )
@@ -411,7 +260,7 @@ aggregate_temporal_period <- Process$new(
     )
 
     message("Aggregate temporal period ...")
-    message("Aggregate temporal period:", dt_period, "using reducer:", reducer)
+    message("Aggregate temporal period: ", dt_period, ", using reducer: ", reducer)
 
     cube <- gdalcubes::aggregate_time(cube = data, dt = dt_period, method = reducer)
     message(gdalcubes::as_json(cube))
@@ -500,7 +349,7 @@ filter_bbox <- Process$new(
   ),
   returns = eo_datacube,
   operation = function(data, extent, job) {
-    crs <- srs(data)
+    crs <- gdalcubes::srs(data)
     nw <- c(extent$west, extent$north)
     sw <- c(extent$west, extent$south)
     se <- c(extent$east, extent$south)
@@ -546,7 +395,7 @@ filter_spatial <- Process$new(
     geo_data <- geo_data$geometry
     geo_data <- sf::st_transform(geo_data, 3857)
     # filter using geom
-    cube <- gdalcubes::filter_geom(data_cube, geo_data)
+    cube <- gdalcubes::filter_geom(data, geo_data)
     return(cube)
   }
 )
@@ -628,23 +477,30 @@ ndvi <- Process$new(
     )
   ),
   returns = eo_datacube,
-  operation = function(data, nir = "nir", red = "red", target_band = NULL, job) {
-    if ((toString(nir) == "B08") && (toString(red) == "B04")) {
-      cube <- gdalcubes::apply_pixel(data, "(B08-B04)/(B08+B04)", names = "NDVI", keep_bands = FALSE)
-      message("ndvi calculated ....")
-      message(gdalcubes::as_json(cube))
-      return(cube)
-    } else if ((toString(nir) == "B05") && (toString(red) == "B04")) {
-      cube <- gdalcubes::apply_pixel(data, "(B05-B04)/(B05+B04)", names = "NDVI", keep_bands = FALSE)
-      message("ndvi calculated ....")
-      message(gdalcubes::as_json(cube))
-      return(cube)
-    } else {
-      cube <- gdalcubes::apply_pixel(data, "(nir-red)/(nir+red)", names = "NDVI", keep_bands = FALSE)
-      message("ndvi calculated ....")
-      message(gdalcubes::as_json(cube))
-      return(cube)
+  operation = function(data, nir = "nir", red = "red", target_band = NULL, job){
+    # Function to ensure band names are properly formatted
+    format_band_name <- function(band) {
+      if (grepl("^B\\d{2}$", band, ignore.case = TRUE)) {
+        return(toupper(band))
+      } else {
+        return(band)
+      }
     }
+
+    # Apply formatting to band names
+    nir_formatted <- format_band_name(nir)
+    red_formatted <- format_band_name(red)
+
+    # Construct the NDVI calculation formula
+    ndvi_formula <- sprintf("(%s-%s)/(%s+%s)", nir_formatted, red_formatted, nir_formatted, red_formatted)
+
+    # Apply the NDVI calculation
+    cube <- gdalcubes::apply_pixel(data, ndvi_formula, names = "NDVI", keep_bands = FALSE)
+
+    # Log and return the result
+    message("NDVI calculated ....")
+    message(gdalcubes::as_json(cube))
+    return(cube)
   }
 )
 
@@ -789,7 +645,7 @@ resample_spatial <- Process$new(
       name = "resolution",
       description = "Resamples the data cube to the target resolution, which can be specified either as separate values for x and y or as a single value for both axes. Specified in the units of the target projection. Doesn't change the resolution by default (0).",
       schema = list(
-        type = list( "number","array")
+        type = list("number", "array")
       ),
       optional = TRUE
     ),
@@ -1095,6 +951,141 @@ run_udf <- Process$new(
   }
 )
 
+
+#' load stac
+load_stac <- Process$new(
+  id = "load_stac",
+  description = "Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable data cube",
+  categories = as.array("cubes", "import"),
+  summary = "Loads data from STAC",
+  parameters = list(
+    Parameter$new(
+      name = "url",
+      description = "The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection that allows to filter items and to download assets",
+      schema = list(
+        type = "string"
+      )
+    ),
+    Parameter$new(
+      name = "spatial_extent",
+      description = "Limits the data to load from the collection to the specified bounding box",
+      schema = list(
+        list(
+          title = "Bounding box",
+          type = "object",
+          subtype = "bounding-box",
+          properties = list(
+            east = list(
+              description = "East (upper right corner, coordinate axis 1).",
+              type = "number"
+            ),
+            west = list(
+              description = "West lower left corner, coordinate axis 1).",
+              type = "number"
+            ),
+            north = list(
+              description = "North (upper right corner, coordinate axis 2).",
+              type = "number"
+            ),
+            south = list(
+              description = "South (lower left corner, coordinate axis 2).",
+              type = "number"
+            )
+          ),
+          required = c("east", "west", "south", "north")
+        ),
+        list(
+          title = "GeoJson",
+          type = "object",
+          subtype = "geojson"
+        ),
+        list(
+          title = "No filter",
+          description = "Don't filter spatially. All data is included in the data cube.",
+          type = "null"
+        )
+      )
+    ),
+    Parameter$new(
+      name = "temporal_extent",
+      description = "Limits the data to load from the collection to the specified left-closed temporal interval.",
+      schema = list(
+        type = "array",
+        subtype = "temporal-interval"
+      )
+    ),
+    Parameter$new(
+      name = "bands",
+      description = "Only adds the specified bands into the data cube so that bands that don't match the list of band names are not available.",
+      schema = list(
+        type = "array"
+      ),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "properties",
+      description = "Limits the data by metadata properties to include only data in the data cube which all given conditions return true for (AND operation).",
+      schema = list(
+        type = "array"
+      ),
+      optional = TRUE
+    )
+  ),
+  returns = eo_datacube,
+  operation = function(url, spatial_extent, temporal_extent, bands = NULL, properties = NULL, job) {
+    # temporal extent preprocess
+    duration <- paste(temporal_extent[[1]], temporal_extent[[2]], collapse = "/")
+
+    # spatial extent for cube view
+    xmin <- as.numeric(spatial_extent$west)
+    ymin <- as.numeric(spatial_extent$south)
+    xmax <- as.numeric(spatial_extent$east)
+    ymax <- as.numeric(spatial_extent$north)
+
+    # get STAC catalog metadata
+    stac_metadata <- rstac::stac(url) %>%
+      rstac::get_request()
+
+    stac_base_url <- stac_metadata$links[[4]]$href
+    id <- stac_metadata$id
+
+    # connect to STAC API using rstac and get satellite data
+    stac_object <- rstac::stac(stac_base_url)
+    items <- stac_object %>%
+      rstac::stac_search(
+        collections = id,
+        bbox = c(xmin, ymin, xmax, ymax),
+        datetime = duration,
+        limit = 10000
+      ) %>%
+      rstac::post_request() %>%
+      rstac::items_fetch()
+
+    # create image collection from STAC items features
+    img_col <- gdalcubes::stac_image_collection(items$features)
+
+    # define cube view with monthly aggregation
+    cube_view <- gdalcubes::cube_view(
+      srs = "EPSG:4326", dx = 30, dy = 30, dt = "P1M",
+      aggregation = "median", resampling = "average",
+      extent = list(
+        t0 = temporal_extent[[1]], t1 = temporal_extent[[2]],
+        left = xmin, right = xmax,
+        top = ymax, bottom = ymin
+      )
+    )
+
+    # create data cube
+    cube <- gdalcubes::raster_cube(img_col, cube_view)
+
+    if (!is.null(bands)) {
+      cube <- gdalcubes::select_bands(cube, bands)
+    }
+
+    message(gdalcubes::as_json(cube))
+    return(cube)
+  }
+)
 
 #' save result
 save_result <- Process$new(
