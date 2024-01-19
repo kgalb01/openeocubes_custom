@@ -1,7 +1,5 @@
 #' cube processes openEO standards mapped to gdalcubes processes
-#'
 #' @include Process-class.R
-#' @import terra
 #' @import gdalcubes
 #' @import rstac
 #' @import useful
@@ -1315,23 +1313,14 @@ train_model_rf <- Process$new(
   operation = function(aot_cube, geojson, ntree = 50) {
     tryCatch({
       print("Beginning the process . . . .")
-      print("Downloading AoT datacube and converting it to a raster data . . . .")
-      # download and convert aot datacube to raster data
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      print("AoT datacube downloaded and converted to raster data . . . .")
-
-      print("Possibly changing CRS of the training data . . . .")
-      geojson <- st_transform(geojson, crs(aot_raster))
-      print("CRS of the training data changed to", crs(aot_raster), ". . . .")
-
       # combine trainingsdata with eo data
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
+      extraction <- extract_geom(aot_cube, geojson, reduce_time = TRUE)
       print("Trainingsdata extracted ....")
 
       print("Now merging trainingsdata with aoi data ....")
       # merge trainingsdata with aot data
       geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       print("Extraction merged with trainingsdata ....")
     }, error = function(e) {
       print(paste("An error occurred during data extraction and merging:", e$message))
@@ -1341,7 +1330,7 @@ train_model_rf <- Process$new(
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
       predictors <- names(aot_cube)
-      train_id <- createDataPartition(extraction$ID, p = 0.9, list = FALSE)
+      train_id <- createDataPartition(extraction$FID, p = 0.9, list = FALSE)
       train_data <- extraction[train_id, ]
       train_data <- train_data[complete.cases(train_data[, predictors]), ]
       print("Trainingdata prepared ....")
@@ -1405,23 +1394,14 @@ train_model_knn <- Process$new(
   operation = function(aot_cube, geojson, k = 10) {
     tryCatch({
       print("Beginning the process . . . .")
-      print("Downloading AoT datacube and converting it to a raster data . . . .")
-      # download and convert aot datacube to raster data
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      print("AoT datacube downloaded and converted to raster data . . . .")
-
-      print("Possibly changing CRS of the training data . . . .")
-      geojson <- st_transform(geojson, crs(aot_raster))
-      print("CRS of the training data changed to", crs(aot_raster), ". . . .")
-
       # combine trainingsdata with eo data
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
+      extraction <- extract_geom(aot_cube, geojson, reduce_time = TRUE)
       print("Trainingsdata extracted ....")
 
       print("Now merging trainingsdata with aoi data ....")
       # merge trainingsdata with aot data
       geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       print("Extraction merged with trainingsdata ....")
     }, error = function(e) {
       print(paste("An error occurred during data extraction and merging:", e$message))
@@ -1431,7 +1411,7 @@ train_model_knn <- Process$new(
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
       predictors <- names(aot_cube)
-      train_id <- createDataPartition(extraction$ID, p = 0.9, list = FALSE)
+      train_id <- createDataPartition(extraction$FID, p = 0.9, list = FALSE)
       train_data <- extraction[train_id, ]
       train_data <- train_data[complete.cases(train_data[, predictors]), ]
       print("Trainingdata prepared ....")
@@ -1503,7 +1483,9 @@ prediction <- Process$new(
                                             model <- readRDS(paste0(tmp, "model.rds"))
                                             bands <- readRDS(paste0(tmp, "bands.rds"))
                                             bands <- setNames(x, bands)
-                                            predict(object = model, newdata = as.data.frame(t(set_bands)))
+                                            prediction <- predict(object = model,
+                                                                  newdata = as.data.frame(t(bands)))
+                                            return(prediction)
                                           })
 
       message("Prediction calculated ....")
