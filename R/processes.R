@@ -1512,16 +1512,16 @@ cube_prediction_knn <- Process$new(
 ##################################  TERRA CLASSIFIER ##################################
 ######################################################################################
 
-#' extract_data
-extract_data <- Process$new(
-  id = "extract_data",
-  description = "Extracts data from a data cube using a GeoJSON file.",
+#' train_model_rf
+train_model_rf <- Process$new(
+  id = "train_model_rf",
+  description = "Trains a Random Forest Algorithm using Trainingsdata as GeoJSON.",
   categories = as.array("cubes"),
-  summary = "Extract data from a data cube using a GeoJSON file",
+  summary = "Train a Random Forest Algorithm",
   parameters = list(
     Parameter$new(
       name = "aot_cube",
-      description = "A data cube with extent of the area of training.",
+      description = "A data cube with extent of area of training.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
@@ -1532,60 +1532,11 @@ extract_data <- Process$new(
       description = "A GeoJSON with training data.",
       schema = list(
         type = "object"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The extracted data with merged trainingsdata.",
-    schema = list(description = "Data frame with merged trainingsdata.")
-  ),
-  operation = function(aot_cube, geojson, job) {
-    tryCatch({
-      print("Beginning the extraction process . . . .")
-      # combine trainingsdata with eo data
-      extraction <- extract_geom(aot_cube, geojson, df = TRUE)
-      geojson$PolyID <- 1:nrow(geojson)
-      print("Trainingsdata extracted ....")
-
-      print("Now merging trainingsdata with aoi data ....")
-      # extract_geom takes "FID" not "ID"
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      print("Extraction merged with trainingsdata ....")
-
-      return(extraction)
-    }, error = function(e) {
-      message("An error occurred during the extraction: ", conditionMessage(e))
-      return(NULL)
-    })
-  }
-)
-
-#' train_model_rf
-train_model_rf <- Process$new(
-  id = "train_model_rf",
-  description = "Trains a model using a Random Forest Algorithm.",
-  categories = as.array("cubes"),
-  summary = "Train a model using Random Forest Algorithm",
-  parameters = list(
-    Parameter$new(
-      name = "extraction",
-      description = "Data extracted from a data cube with training data.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube with extent of area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
       )
     ),
     Parameter$new(
       name = "ntree",
-      description = "Number of trees in the random forest.",
+      description = "Number of trees to grow in random forest.",
       schema = list(
         type = "integer"
       ),
@@ -1593,64 +1544,89 @@ train_model_rf <- Process$new(
     )
   ),
   returns = list(
-    description = "The trained model.",
-    schema = list(description = "A model object.")
+    description = "The trained Random Forest model.",
+    schema = list(type = "object")
   ),
-  operation = function(extraction, aoi_cube, ntree = 50, job) {
+  operation = function(aot_cube, geojson, ntree = 50) {
+    tryCatch({
+      print("Beginning the process . . . .")
+      print("Downloading AoT datacube and converting it to a raster data . . . .")
+      # download and convert aot datacube to raster data
+      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
+      print("AoT datacube downloaded and converted to raster data . . . .")
+
+      print("Possibly changing CRS of the training data . . . .")
+      geojson <- st_transform(geojson, crs(aot_raster))
+      print("CRS of the training data changed to", crs(aot_raster), ". . . .")
+
+      # combine trainingsdata with eo data
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
+      print("Trainingsdata extracted ....")
+
+      print("Now merging trainingsdata with aoi data ....")
+      # merge trainingsdata with aot data
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
+      print("Extraction merged with trainingsdata ....")
+    }, error = function(e) {
+      print(paste("An error occurred during data extraction and merging:", e$message))
+    })
+
     tryCatch({
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
-      predictors <- names(aoi_cube)
-      train_dat <- extraction[complete.cases(extraction[, predictors]), ]
+      predictors <- names(aot_cube)
+      train_id <- createDataPartition(extraction$ID, p = 0.9, list = FALSE)
+      train_data <- extraction[train_id, ]
+      train_data <- train_data[complete.cases(train_data[, predictors]), ]
       print("Trainingdata prepared ....")
     }, error = function(e) {
-      message("An error occurred during the preparation of training data: ", conditionMessage(e))
+      print(paste("An error occurred during training data preparation:", e$message))
     })
 
     tryCatch({
       print("Now training the model ....")
       # train the model
-      model <- caret::train(
-        train_dat[, predictors],
-        train_dat$Label,
-        method = "rf",
-        ntree = ntree
-      )
+      model <- train(train_data[, predictors],
+                     train_data$Label,
+                     method = "rf",
+                     importance = TRUE,
+                     ntree = 50)
       print("Model trained ....")
       print(paste("Number of trees build:", ntree))
+      return(model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
+      return(NULL)
     })
-
-    return(model)
   }
 )
 
 #' train_model_knn
 train_model_knn <- Process$new(
   id = "train_model_knn",
-  description = "Trains a model using the k-Nearest Neighbor Algorithm.",
+  description = "Trains a K-Nearest Neighbors Algorithm using Trainingsdata as GeoJSON.",
   categories = as.array("cubes"),
-  summary = "Train a model using k-Nearest Neighbor Algorithm",
+  summary = "Train a K-Nearest Neighbors Algorithm",
   parameters = list(
     Parameter$new(
-      name = "extraction",
-      description = "Data extracted from a data cube with training data.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube with extent of area of interest.",
+      name = "aot_cube",
+      description = "A data cube with extent of area of training.",
       schema = list(
         type = "object",
         subtype = "raster-cube"
       )
     ),
     Parameter$new(
+      name = "geojson",
+      description = "A GeoJSON with training data.",
+      schema = list(
+        type = "object"
+      )
+    ),
+    Parameter$new(
       name = "k",
-      description = "Number of neighbors to consider in the k-Nearest Neighbor algorithm.",
+      description = "Number of nearest neighbors considered.",
       schema = list(
         type = "integer"
       ),
@@ -1658,36 +1634,60 @@ train_model_knn <- Process$new(
     )
   ),
   returns = list(
-    description = "The trained model.",
-    schema = list(description = "A model object.")
+    description = "The trained Random Forest model.",
+    schema = list(type = "object")
   ),
-  operation = function(extraction, aoi_cube, k = 10, job) {
+  operation = function(aot_cube, geojson, k = 10) {
+    tryCatch({
+      print("Beginning the process . . . .")
+      print("Downloading AoT datacube and converting it to a raster data . . . .")
+      # download and convert aot datacube to raster data
+      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
+      print("AoT datacube downloaded and converted to raster data . . . .")
+
+      print("Possibly changing CRS of the training data . . . .")
+      geojson <- st_transform(geojson, crs(aot_raster))
+      print("CRS of the training data changed to", crs(aot_raster), ". . . .")
+
+      # combine trainingsdata with eo data
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
+      print("Trainingsdata extracted ....")
+
+      print("Now merging trainingsdata with aoi data ....")
+      # merge trainingsdata with aot data
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
+      print("Extraction merged with trainingsdata ....")
+    }, error = function(e) {
+      print(paste("An error occurred during data extraction and merging:", e$message))
+    })
+
     tryCatch({
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
-      predictors <- names(aoi_cube)
-      train_dat <- extraction[complete.cases(extraction[, predictors]), ]
+      predictors <- names(aot_cube)
+      train_id <- createDataPartition(extraction$ID, p = 0.9, list = FALSE)
+      train_data <- extraction[train_id, ]
+      train_data <- train_data[complete.cases(train_data[, predictors]), ]
       print("Trainingdata prepared ....")
     }, error = function(e) {
-      message("An error occurred during the preparation of training data: ", conditionMessage(e))
+      print(paste("An error occurred during training data preparation:", e$message))
     })
 
     tryCatch({
       print("Now training the model ....")
       # train the model
-      model <- caret::train(
-        train_dat[, predictors],
-        train_dat$Label,
-        method = "knn",
-        tuneLength = k
-      )
+      model <- train(train_data[, predictors],
+                     train_data$Label,
+                     method = "knn",
+                     tuneLength = k)
       print("Model trained ....")
-      print(paste("Number of neighbors considered during training:", ntree))
+      print(paste("Number of nearest neighbors considered:", k))
+      return(model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
+      return(NULL)
     })
-
-    return(model)
   }
 )
 
@@ -1699,10 +1699,11 @@ prediction <- Process$new(
   summary = "Perform prediction using a trained model on a data cube",
   parameters = list(
     Parameter$new(
-      name = "extraction",
-      description = "Data extracted from a data cube with training data.",
+      name = "aoi_cube",
+      description = "A data cube with extent of area of interest.",
       schema = list(
-        type = "object"
+        type = "object",
+        subtype = "raster-cube"
       )
     ),
     Parameter$new(
@@ -1711,18 +1712,10 @@ prediction <- Process$new(
       schema = list(
         type = "object"
       )
-    ),
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube with extent of area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
     )
   ),
   returns = eo_datacube,
-  operation = function(extraction, model, aoi_cube, job) {
+  operation = function(aoi_cube, model, job) {
     tryCatch({
       print("Now preparing the model for further use in the prediction ....")
       # creating a temporary directory to save the model and the bands
@@ -1750,7 +1743,7 @@ prediction <- Process$new(
       return(prediction)
     }, error = function(e) {
       message("An error occurred during the prediction: ", conditionMessage(e))
-      return(aoi_cube)
+      return(NULL)
     })
   }
 )
