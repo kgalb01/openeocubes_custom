@@ -1316,20 +1316,20 @@ train_model_rf <- Process$new(
       # combine trainingsdata with eo data
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(aot_cube, geojson, reduce_time = TRUE)
-      extraction <- as.data.frame(extraction)
       print("Trainingsdata extracted ....")
 
       print("Now merging trainingsdata with aoi data ....")
       # merge trainingsdata with aot data
       geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      df <- as.data.frame(extraction)
       print("Extraction merged with trainingsdata ....")
 
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
       predictors <- names(aot_cube)
-      train_id <- createDataPartition(extraction$FID, p = 0.9, list = FALSE)
-      train_data <- extraction[train_id, ]
+      train_id <- createDataPartition(df$FID, p = 0.9, list = FALSE)
+      train_data <- df[train_id, ]
       train_data <- train_data[complete.cases(train_data[, predictors]), ]
       print("Trainingdata prepared ....")
 
@@ -1341,8 +1341,8 @@ train_model_rf <- Process$new(
                      ntree = ntree)
       print("Model trained ....")
       print(paste("Number of nearest neighbors considered:", k))
-
-      return(model)
+      json_model <- toJSON(model, force = TRUE)
+      return(json_model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
       return(NULL)
@@ -1389,15 +1389,15 @@ train_model_knn <- Process$new(
     tryCatch({
       print("Beginning the process . . . .")
       # combine trainingsdata with eo data
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(aot_cube, geojson, reduce_time = TRUE)
-      extraction <- as.data.frame(extraction)
+      df <- as.data.frame(extraction)
       print("Trainingsdata extracted ....")
 
       print("Now merging trainingsdata with aoi data ....")
       # merge trainingsdata with aot data
       geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      extraction <- merge(df, geojson, by.x = "FID", by.y = "PolyID")
       print("Extraction merged with trainingsdata ....")
 
       print("Now preparing the trainingdata for the modeltraining ....")
@@ -1416,7 +1416,7 @@ train_model_knn <- Process$new(
                      tuneLength = k)
       print("Model trained ....")
       print(paste("Number of nearest neighbors considered:", k))
-
+      json_model <- toJSON(model, force = TRUE)
       return(model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
