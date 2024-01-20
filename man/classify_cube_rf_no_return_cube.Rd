@@ -6,17 +6,11 @@
 \title{classify_cube_rf_no_return_cube}
 \format{
 An object of class \code{Process} (inherits from \code{R6}) of length 12.
-
-An object of class \code{Process} (inherits from \code{R6}) of length 12.
 }
 \usage{
 classify_cube_rf_no_return_cube
-
-classify_cube_rf_no_return_cube
 }
 \description{
-classify_cube_rf_no_return_cube
-
 classify_cube_rf_no_return_cube
 }
 \keyword{datasets}
