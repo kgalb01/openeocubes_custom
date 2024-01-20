@@ -1417,7 +1417,7 @@ classify_cube_rf <- Process$new(
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)    
+      message("Model trained, accuracy: ", model$results$Accuracy)
     },
     error = function(e){
       message("Error in model training")
@@ -1428,7 +1428,7 @@ classify_cube_rf <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -1590,7 +1590,7 @@ classify_cube <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -1855,7 +1855,7 @@ classify_cube_rf_no_return_cube <- Process$new(
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)    
+      message("Model trained, accuracy: ", model$results$Accuracy)
     },
     error = function(e){
       message("Error in model training")
@@ -1866,7 +1866,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -1964,7 +1964,7 @@ classify_cube_rf_download_all <- Process$new(
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
@@ -2079,7 +2079,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
@@ -2120,7 +2120,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)    
+      message("Model trained, accuracy: ", model$results$Accuracy)
     },
     error = function(e){
       message("Error in model training")
@@ -2131,7 +2131,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -2204,7 +2204,7 @@ classify_cube_rf_download_aot_only <- Process$new(
       # downloading data
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
@@ -2245,7 +2245,7 @@ classify_cube_rf_download_aot_only <- Process$new(
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)    
+      message("Model trained, accuracy: ", model$results$Accuracy)
     },
     error = function(e){
       message("Error in model training")
@@ -2256,7 +2256,7 @@ classify_cube_rf_download_aot_only <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -2359,7 +2359,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
       # downloading data
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
@@ -2400,7 +2400,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)    
+      message("Model trained, accuracy: ", model$results$Accuracy)
     },
     error = function(e){
       message("Error in model training")
@@ -2411,7 +2411,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -2462,9 +2462,9 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
 )
 
 
-#' classify_cube_rf_no_return_cube
-classify_cube_rf_no_return_cube <- Process$new(
-  id = "classify_cube_rf_no_return_cube",
+#' classify_cube_no_return_cube
+classify_cube_no_return_cube <- Process$new(
+  id = "classify_cube_no_return_cube",
   description = "Classifies a data cube using a model.",
   categories = as.array("cubes"),
   summary = "Classify a data cube using random forest",
@@ -2498,7 +2498,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     tryCatch({
       # preparing to use the model in the classification
       message("Preparing to use the model in the classification . . . .")
-      
+
       # creating a temporary directory to save the model
       tmp <- tempdir()
 
@@ -2635,8 +2635,8 @@ classify_cube_download_no_return_cube <- Process$new(
 )
 
 #' train_model_rf_download
-train_model_rf <- Process$new(
-  id = "train_model_rf",
+train_model_rf_download <- Process$new(
+  id = "train_model_rf_download",
   description = "Trains a random forest model.",
   categories = as.array("cubes"),
   summary = "Train a random forest model",
@@ -2677,7 +2677,7 @@ train_model_rf <- Process$new(
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
       message("Data downloaded ....")
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
@@ -2756,7 +2756,7 @@ train_data_download <- Process$new(
       message("Downloading data . . . .")
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
       message("Data downloaded ....")
-      
+
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
