@@ -1314,6 +1314,7 @@ train_model_rf <- Process$new(
     tryCatch({
       print("Beginning the process . . . .")
       # combine trainingsdata with eo data
+      print("Transforming the geojson to the same crs as the aot data ....")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(aot_cube, geojson, reduce_time = TRUE)
       print("Trainingsdata extracted ....")
@@ -1322,27 +1323,31 @@ train_model_rf <- Process$new(
       # merge trainingsdata with aot data
       geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      df <- as.data.frame(extraction)
       print("Extraction merged with trainingsdata ....")
 
       print("Now preparing the trainingdata for the modeltraining ....")
       # prepare the trainingdata for the modeltraining
       predictors <- names(aot_cube)
-      train_id <- createDataPartition(df$FID, p = 0.9, list = FALSE)
+      train_id <- createDataPartition(df$FID, p = 0.1, list = FALSE)
       train_data <- df[train_id, ]
       train_data <- train_data[complete.cases(train_data[, predictors]), ]
+      train_data <- as.data.frame(train_data)
       print("Trainingdata prepared ....")
 
       print("Now training the model ....")
       # train the model
       model <- train(train_data[, predictors],
                      train_data$Label,
-                     method = "knn",
+                     method = "rf",
                      ntree = ntree)
       print("Model trained ....")
       print(paste("Number of nearest neighbors considered:", k))
-      json_model <- toJSON(model, force = TRUE)
-      return(json_model)
+      tmp <- tempdir()
+      saveRDS(model, paste0(tmp, "/model.rds"))
+      print("Model saved! . . . .")
+      Sys.setenv(TMPDIRPATH <- tmp)
+      model = readRDS(paste0(tmp, "/model.rds"))
+      return(model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
       return(NULL)
@@ -1416,7 +1421,6 @@ train_model_knn <- Process$new(
                      tuneLength = k)
       print("Model trained ....")
       print(paste("Number of nearest neighbors considered:", k))
-      json_model <- toJSON(model, force = TRUE)
       return(model)
     }, error = function(e) {
       message("An error occurred during model training: ", conditionMessage(e))
@@ -1448,21 +1452,17 @@ prediction <- Process$new(
       )
     )
   ),
-  returns = list(
-    description = "The predicted data cube.",
-    schema = list(type = "object")
-  ),
+  returns = eo_datacube,
   operation = function(aoi_cube, model, job) {
     tryCatch({
       print("Now preparing the model for further use in the prediction ....")
       # creating a temporary directory to save the model and the bands
-      this_model <- model
       tmp <- tempdir()
-      saveRDS(this_model, paste0(tmp, "model.rds"))
+      saveRDS(model, paste0(tmp, "model.rds"))
       print("Model in saved temporary directory ....")
-      Sys.setenv(TMPDIRPATH = tmp)
       bands <- names(aoi_cube)
       saveRDS(bands, paste0(tmp, "bands.rds"))
+      Sys.setenv(TMPDIRPATH = tmp)
       print("Bands in saved temporary directory ....")
       print("Model prepared ....")
       prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
