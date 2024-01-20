@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y libproj-dev libgdal-dev
 # Install devtools package
 RUN R -e "install.packages('devtools')"
 
+# Install caret package
+RUN R -e "install.packages('terra')"
+
 # Install gdalcubes package
 RUN R -e "install.packages('gdalcubes')"
 
