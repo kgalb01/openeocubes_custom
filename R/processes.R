@@ -1392,7 +1392,7 @@ classify_cube_rf <- Process$new(
       # change class of geojson$geom, if necessary
       message("changing class of geometry if necessary . . . .")
       names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(trainingsdata, "geom")
+      geojson <- sf::st_set_geometry(geojson, "geom")
       message("Class changed . . . .")
 
       message("changing srs of trainingsdata if necessary . . . .")
@@ -1553,7 +1553,7 @@ train_model_rf <- Process$new(
       # change class of geojson$geom, if necessary
       message("changing class of geometry if necessary . . . .")
       names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(trainingsdata, "geom")
+      geojson <- sf::st_set_geometry(geojson, "geom")
       message("Class changed . . . .")
 
       message("Combining training data with cube data . . . .")
@@ -2946,7 +2946,7 @@ stars_training <- Process$new(
       # change class of geojson$geom, if necessary
       message("changing class of geometry if necessary . . . .")
       names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(trainingsdata, "geom")
+      geojson <- sf::st_set_geometry(geojson, "geom")
       message("Class changed . . . .")
       
       message("Combining trainingsdata with EO data from the datacube")
