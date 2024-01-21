@@ -1542,7 +1542,7 @@ train_model_rf <- Process$new(
     tryCatch({
       # combine training data with cube data
 
-      # change class of geojson$geom, if necessary
+      # change class of geojson$geometry, if necessary
       message("changing class of geometry if necessary . . . .")
       names(geojson)[names(geojson) == "geometry"] <- "geom"
       geojson <- sf::st_set_geometry(geojson, "geom")
@@ -1550,11 +1550,10 @@ train_model_rf <- Process$new(
 
       # change class of geojson, if necessary
       message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
       geojson <- sf::st_as_sf(geojson)
       message("Class changed . . . .")
 
-      message("changing srs of trainingsdata if necessary . . . .")
+      message("changing srs of training data if necessary . . . .")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
 
@@ -1565,21 +1564,21 @@ train_model_rf <- Process$new(
         FUN = median,
         reduce_time = TRUE
         )
-      message("Trainingsdata extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
+      # prepare the training data for the model training
+      message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
       train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
+      message("Training data prepared . . . .")
     },
     error = function(e){
       message("Error in training data preparation")
