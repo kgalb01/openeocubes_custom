@@ -1374,13 +1374,18 @@ classify_cube_rf <- Process$new(
     )
   ),
   returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
+  operation = function(aoi_cube, aot_cube, geojson, ntree = 50, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      extraction <- gdalcubes::extract_geom(aot_cube, geojson)
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson,
+        FUN = median, 
+        reduce_time = TRUE
+        )
       message("Trainingsdata extracted ....")
 
       # merge training data with cube data
@@ -1514,13 +1519,18 @@ train_model_rf <- Process$new(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 500, job){
+  operation = function(aot_cube, geojson, ntree = 50, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      extraction <- gdalcubes::extract_geom(aot_cube, geojson)
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson,
+        FUN = median,  
+        reduce_time = TRUE
+        )
       message("Trainingsdata extracted ....")
 
       # merge training data with cube data
@@ -1673,7 +1683,12 @@ train_data <- Process$new(
     tryCatch({
       message("Combining training data with cube data . . . .")
       #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      extraction <- gdalcubes::extract_geom(aot_cube, geojson)
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson,
+        FUN = median,
+        reduce_time = TRUE
+        )
       message("Trainingsdata extracted ....")
 
       # merge training data with cube data
@@ -1818,7 +1833,12 @@ classify_cube_rf_no_return_cube <- Process$new(
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
       #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      extraction <- gdalcubes::extract_geom(aot_cube, geojson)
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson,
+        FUN = median,
+        reduce_time = TRUE
+        )
       message("Trainingsdata extracted ....")
 
       # merge training data with cube data
