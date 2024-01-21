@@ -1379,6 +1379,13 @@ classify_cube_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+
+      # change class of geojson$geom, if necessary
+      message("changing class of geometry if necessary . . . .")
+      names(geojson)[names(geojson) == "geometry"] <- "geom"
+      geojson <- sf::st_set_geometry(geojson, "geom")
+      message("Class changed . . . .")
+
       # change class of geojson, if necessary
       message("Changing class of training data . . . .")
       geojson <- as.data.frame(geojson)
@@ -1388,12 +1395,6 @@ classify_cube_rf <- Process$new(
       message("changing srs of trainingsdata if necessary . . . .")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      # change class of geojson$geom, if necessary
-      message("changing class of geometry if necessary . . . .")
-      names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(geojson, "geom")
-      message("Class changed . . . .")
 
       message("changing srs of trainingsdata if necessary . . . .")
       message("Combining training data with cube data . . . .")
@@ -1540,6 +1541,13 @@ train_model_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+
+      # change class of geojson$geom, if necessary
+      message("changing class of geometry if necessary . . . .")
+      names(geojson)[names(geojson) == "geometry"] <- "geom"
+      geojson <- sf::st_set_geometry(geojson, "geom")
+      message("Class changed . . . .")
+
       # change class of geojson, if necessary
       message("Changing class of training data . . . .")
       geojson <- as.data.frame(geojson)
@@ -1549,12 +1557,6 @@ train_model_rf <- Process$new(
       message("changing srs of trainingsdata if necessary . . . .")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      # change class of geojson$geom, if necessary
-      message("changing class of geometry if necessary . . . .")
-      names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(geojson, "geom")
-      message("Class changed . . . .")
 
       message("Combining training data with cube data . . . .")
       extraction <- extract_geom(
@@ -2926,10 +2928,10 @@ stars_training <- Process$new(
   operation = function(aot_cube, geojson, job){
     message("Beginning the process . . . .")
     tryCatch({
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
+      # change class of geojson$geom, if necessary
+      message("changing class of geometry if necessary . . . .")
+      names(geojson)[names(geojson) == "geometry"] <- "geom"
+      geojson <- sf::st_set_geometry(geojson, "geom")
       message("Class changed . . . .")
 
       # combine trainingsdata with eo data
@@ -2942,12 +2944,6 @@ stars_training <- Process$new(
       message("changing srs of trainingsdata if necessary . . . .")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      # change class of geojson$geom, if necessary
-      message("changing class of geometry if necessary . . . .")
-      names(geojson)[names(geojson) == "geometry"] <- "geom"
-      geojson <- sf::st_set_geometry(geojson, "geom")
-      message("Class changed . . . .")
       
       message("Combining trainingsdata with EO data from the datacube")
       aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
