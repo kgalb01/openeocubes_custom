@@ -1379,7 +1379,7 @@ classify_cube_rf <- Process$new(
     tryCatch({
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- gdalcubes::extract_geom(aot_cube, geojson)
       message("Trainingsdata extracted ....")
 
@@ -1519,7 +1519,7 @@ train_model_rf <- Process$new(
     tryCatch({
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- gdalcubes::extract_geom(aot_cube, geojson)
       message("Trainingsdata extracted ....")
 
@@ -1672,7 +1672,7 @@ train_data <- Process$new(
     message("Beginning the process of creating training data . . . .")
     tryCatch({
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- gdalcubes::extract_geom(aot_cube, geojson)
       message("Trainingsdata extracted ....")
 
@@ -1817,7 +1817,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     tryCatch({
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- gdalcubes::extract_geom(aot_cube, geojson)
       message("Trainingsdata extracted ....")
 
@@ -1967,7 +1967,7 @@ classify_cube_rf_download_all <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2082,7 +2082,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2207,7 +2207,7 @@ classify_cube_rf_download_aot_only <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2362,7 +2362,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2680,7 +2680,7 @@ train_model_rf_download <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2759,7 +2759,7 @@ train_data_download <- Process$new(
 
       # combine training data with cube data
       message("Combining training data with cube data . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
