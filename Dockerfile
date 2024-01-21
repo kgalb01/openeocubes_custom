@@ -15,6 +15,9 @@ RUN R -e "install.packages('terra')"
 # Install gdalcubes package
 RUN R -e "install.packages('gdalcubes')"
 
+# Install gdalcubes package
+RUN R -e "install.packages('stars')"
+
 # Install caret package
 RUN R -e "install.packages('caret')"
 

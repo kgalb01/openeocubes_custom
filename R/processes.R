@@ -1,6 +1,7 @@
 #' cube processes openEO standards mapped to gdalcubes processes
 #' @include Process-class.R
 #' @import terra
+#' @import stars
 #' @import gdalcubes
 #' @import rstac
 #' @import useful
@@ -1378,14 +1379,22 @@ classify_cube_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      message("changing srs of trainingsdata if necessary . . . .")
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson,
-        FUN = median, 
+        FUN = median,
         reduce_time = TRUE
-        )
+      )
       message("Trainingsdata extracted ....")
 
       # merge training data with cube data
@@ -1404,14 +1413,14 @@ classify_cube_rf <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
     tryCatch({
       message("Preparing training data for modeltraining . . . .")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p = 0.75,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -1426,7 +1435,7 @@ classify_cube_rf <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -1478,7 +1487,7 @@ classify_cube_rf <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -1523,12 +1532,20 @@ train_model_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson,
-        FUN = median,  
+        FUN = median,
         reduce_time = TRUE
         )
       message("Trainingsdata extracted ....")
@@ -1549,7 +1566,7 @@ train_model_rf <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -1565,7 +1582,7 @@ train_model_rf <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -1645,7 +1662,7 @@ classify_cube <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -1681,8 +1698,10 @@ train_data <- Process$new(
   operation = function(aot_cube, geojson, job){
     message("Beginning the process of creating training data . . . .")
     tryCatch({
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson,
@@ -1708,7 +1727,7 @@ train_data <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -1754,7 +1773,7 @@ model_rf <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 }
 )
@@ -1831,8 +1850,16 @@ classify_cube_rf_no_return_cube <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson,
@@ -1857,7 +1884,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -1879,7 +1906,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -1931,7 +1958,7 @@ classify_cube_rf_no_return_cube <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -1986,8 +2013,16 @@ classify_cube_rf_download_all <- Process$new(
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2007,7 +2042,7 @@ classify_cube_rf_download_all <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -2029,7 +2064,7 @@ classify_cube_rf_download_all <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -2041,7 +2076,7 @@ classify_cube_rf_download_all <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2101,8 +2136,16 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2122,7 +2165,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -2144,7 +2187,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -2172,7 +2215,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2226,8 +2269,16 @@ classify_cube_rf_download_aot_only <- Process$new(
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2247,7 +2298,7 @@ classify_cube_rf_download_aot_only <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -2269,7 +2320,7 @@ classify_cube_rf_download_aot_only <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -2321,7 +2372,7 @@ classify_cube_rf_download_aot_only <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2381,8 +2432,16 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2402,7 +2461,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -2424,7 +2483,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now classifying the data . . . .")
@@ -2476,7 +2535,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2563,7 +2622,7 @@ classify_cube_no_return_cube <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2604,7 +2663,7 @@ classify_cube_download <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2649,7 +2708,7 @@ classify_cube_download_no_return_cube <- Process$new(
     },
     error = function(e){
       message("Error in classification")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2699,8 +2758,16 @@ train_model_rf_download <- Process$new(
       message("Data downloaded ....")
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2720,7 +2787,7 @@ train_model_rf_download <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
     })
 
     message("Now training the model . . . .")
@@ -2736,7 +2803,7 @@ train_model_rf_download <- Process$new(
     },
     error = function(e){
       message("Error in model training")
-      message(e)
+      message(conditionMessage(e))
     })
   }
 )
@@ -2778,8 +2845,16 @@ train_data_download <- Process$new(
       message("Data downloaded ....")
 
       # combine training data with cube data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
+
       message("Combining training data with cube data . . . .")
-      #geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
       extraction <- terra::extract(aot_raster, geojson)
       message("Trainingsdata extracted ....")
 
@@ -2800,7 +2875,96 @@ train_data_download <- Process$new(
     },
     error = function(e){
       message("Error in training data preparation")
-      message(e)
+      message(conditionMessage(e))
+    })
+  }
+)
+
+#' stars_training
+stars_training <- Process$new(
+  id = "stars_training",
+  description = "Trains a model using EO data from the datacube and training data.",
+  categories = as.array("cubes"),
+  summary = "Train model using EO data",
+  parameter = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube containing the EO data.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A geojson file containing the training data.",
+      schema = list(
+        type = "object"
+      ),
+      optional = FALSE
+    )
+  ),
+  returns = list(
+    description = "The trained model.",
+    schema = list(type = "object")
+  ),
+  operation = function(aot_cube, geojson, job){
+    message("Beginning the process . . . .")
+    tryCatch({
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      # combine trainingsdata with eo data
+      # change class of geojson, if necessary
+      message("Changing class of training data . . . .")
+      geojson <- as.data.frame(geojson)
+      geojson <- sf::st_as_sf(geojson)
+      message("Class changed . . . .")
+
+      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+
+      message("Combining trainingsdata with EO data from the datacube")
+      aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
+      extraction <- stars::st_extract(
+        x = aot_st,
+        at = trainingsdata,
+        FUN = median,
+        reduce_time = TRUE
+      )
+      message("Trainingsdata extracted ....")
+
+      # merge trainingsdata with aot data
+      message("Now merging trainingsdata with aoi data ....")
+      geojson$PolyID <- seq_len(nrow(geojson))
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with trainingsdata ....")
+
+      # prepare the trainingdata for the modeltraining
+      message("Now preparing the trainingdata for the modeltraining ....")
+      predictors <- names(aot_cube)
+      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_data <- extraction[train_ids,]
+      train_data <- train_data[complete.cases(train_data[,predictors]),]
+      train_data <- as.data.frame(train_data)
+      message("Trainingdata prepared . . . .")
+
+      # train the model with random forest and prepared traindata
+      message("Now training the model . . . .")
+      model <- train(train_data[,predictors],
+                     train_data$Label,
+                     method = "rf",
+                     importance = TRUE,
+                     ntree = 50)
+      message("Model trained, accuracy: ", model$results$Accuracy)
+      return(model)
+    },
+    error = function(e){
+      message("Error in the process")
+      message(conditionMessage(e))
     })
   }
 )

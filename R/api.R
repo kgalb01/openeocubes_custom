@@ -338,4 +338,5 @@ addEndpoint = function() {
   Session$assignProcess(train_data_download)
   Session$assignProcess(classify_cube_no_return_cube)
   Session$assignProcess(train_model_rf_download)
+  Session$assignProcess(stars_training)
 }
