@@ -1537,6 +1537,9 @@ train_model_rf <- Process$new(
       # combine training data with cube data
       geojson <- as.data.frame(geojson)
       geojson <- sf::st_as_sf(geojson)
+      message(geojson)
+      geojson$geometry <- sf::st_sfc(geojson$geometry)
+      message(class(geojson))
       if(inherits(geojson, "sf")){
         message("Combining training data with cube data . . . .")
         message(class(geojson))
