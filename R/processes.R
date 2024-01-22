@@ -1572,11 +1572,11 @@ train_model_rf <- Process$new(
     message("Now training the model . . . .")
     tryCatch({
       # train the model with random forest and training data
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
+      model <- caret::train(train_data[,predictors],
+      train_data$Label,
+      method = "rf",
+      importance = TRUE,
+      ntree = ntree)
       message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
     },
