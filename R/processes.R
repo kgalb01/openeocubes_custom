@@ -1549,6 +1549,7 @@ train_model_rf <- Process$new(
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
