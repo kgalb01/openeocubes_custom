@@ -1536,9 +1536,11 @@ train_model_rf <- Process$new(
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
       message(class(geojson))
-      cube_crs <- gdalcubes::srs(data)
-      crsUse <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crsUse)
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
       message(class(geojson))
       extraction <- extract_geom(
