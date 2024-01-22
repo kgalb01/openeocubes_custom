@@ -1535,7 +1535,25 @@ train_model_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-      extraction <- extract_geom(aot_cube, geojson, df = TRUE)
+      if(inherits(geojson, "sf")){
+        message("Combining training data with cube data . . . .")
+        message(class(geojson))
+        extraction <- extract_geom(
+          cube = aot_cube,
+          sf = geojson
+        )
+          message("Training data extracted ....")
+      } else {
+            message("Changing class of GeoJSON . . . .")
+            message(class(geojson))
+            geojson <- sf::st_as_sf(geojson)
+            message(class(geojson))
+            message("Combining training data with cube data . . . .")
+            extraction <- extract_geom(
+              cube = aot_cube,
+              sf = geojson)
+        message("Training data extracted ....")
+      }
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
