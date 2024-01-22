@@ -1391,7 +1391,7 @@ classify_cube_rf <- Process$new(
 
       message("changing srs of trainingsdata if necessary . . . .")
       message("Combining training data with cube data . . . .")
-      extraction <- extract_geom(
+      extraction <- gdalcubes::extract_geom(
         cube = aot_cube,
         sf = geojson,
         FUN = median,
@@ -1547,9 +1547,9 @@ train_model_rf <- Process$new(
       message("Combining training data with cube data . . . .")
       extraction <- extract_geom(
         cube = aot_cube,
-        sf = geojson,
-        FUN = median,
-        reduce_time = TRUE
+        sf = geojson#,
+        #FUN = median,
+        #reduce_time = TRUE
       )
       message("Training data extracted ....")
 
