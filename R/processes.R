@@ -1696,7 +1696,8 @@ train_data <- Process$new(
       name = "geojson",
       description = "A geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "object",
+        subtype = "geojson"
       ),
       optional = FALSE
     )
