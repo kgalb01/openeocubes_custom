@@ -1360,9 +1360,9 @@ classify_cube_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -1380,31 +1380,27 @@ classify_cube_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-
-      # change class of geojson$geometry, if necessary
-      #message("changing class of geometry if necessary . . . .")
-      #geojson <- sf::st_set_geometry(geojson, "geometry")
-      #message("geometry changed . . . .")
-
-      #message("changing srs of training data if necessary . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      #message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- gdalcubes::extract_geom(
+      message(class(geojson))
+      extraction <- extract_geom(
         cube = aot_cube,
-        sf = geojson,
-        FUN = median,
-        reduce_time = TRUE
+        sf = geojson
       )
-      message("Trainingsdata extracted ....")
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -1512,7 +1508,7 @@ train_model_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A URL to geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
         type = "string"
       ),
@@ -1547,7 +1543,7 @@ train_model_rf <- Process$new(
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
-        )
+      )
         message("Training data extracted ....")
 
       # merge training data with cube data
@@ -1700,23 +1696,28 @@ train_data <- Process$new(
   operation = function(aot_cube, geojson, job){
     message("Beginning the process of creating training data . . . .")
     tryCatch({
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-
+      # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
+      message(class(geojson))
       extraction <- extract_geom(
         cube = aot_cube,
-        sf = geojson,
-        FUN = median,
-        reduce_time = TRUE
-        )
-      message("Trainingsdata extracted ....")
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -1826,9 +1827,9 @@ classify_cube_rf_no_return_cube <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -1852,29 +1853,27 @@ classify_cube_rf_no_return_cube <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
+      message(class(geojson))
       extraction <- extract_geom(
         cube = aot_cube,
-        sf = geojson,
-        FUN = median,
-        reduce_time = TRUE
-        )
-      message("Trainingsdata extracted ....")
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -1990,9 +1989,9 @@ classify_cube_rf_download_all <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -2015,24 +2014,27 @@ classify_cube_rf_download_all <- Process$new(
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2108,9 +2110,9 @@ classify_cube_rf_download_no_cube_return <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -2138,24 +2140,27 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2247,9 +2252,9 @@ classify_cube_rf_download_aot_only <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -2271,24 +2276,27 @@ classify_cube_rf_download_aot_only <- Process$new(
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2404,9 +2412,9 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -2434,24 +2442,27 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
       aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
-      extraction <- merge(extraction, geojson, by.x = "ID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2732,9 +2743,9 @@ train_model_rf_download <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -2760,24 +2771,27 @@ train_model_rf_download <- Process$new(
       message("Data downloaded ....")
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2827,9 +2841,9 @@ train_data_download <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     )
@@ -2847,24 +2861,27 @@ train_data_download <- Process$new(
       message("Data downloaded ....")
 
       # combine training data with cube data
-      # change class of geojson, if necessary
-      message("Changing class of training data . . . .")
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message("Class changed . . . .")
-
-      message("changing srs of trainingsdata if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = terra::crs(aot_raster))
-
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
       message("Combining training data with cube data . . . .")
-      extraction <- terra::extract(aot_raster, geojson)
-      message("Trainingsdata extracted ....")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
@@ -2899,9 +2916,9 @@ stars_training <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "string"
       ),
       optional = FALSE
     )
@@ -2914,17 +2931,15 @@ stars_training <- Process$new(
     message("Beginning the process . . . .")
     tryCatch({
       # combine training data with cube data
-
-      # change class of geojson$geometry, if necessary
-      message("changing class of geometry if necessary . . . .")
-      geojson <- sf::st_set_geometry(geojson, "geometry")
-      message("geometry changed . . . .")
-
-      message("changing srs of training data if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      message("Combining trainingsdata with EO data from the datacube")
+      geojson <- sf::read_sf(geojson)
+      message(class(geojson))
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      message(crs_data)
+      message(sf::st_crs(geojson))
+      message("Combining training data with cube data . . . .")
+      message(class(geojson))
       aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
       extraction <- stars::st_extract(
         x = aot_st,
@@ -2933,12 +2948,14 @@ stars_training <- Process$new(
         reduce_time = TRUE
       )
       message("Trainingsdata extracted ....")
+      message("Training data extracted ....")
 
-      # merge trainingsdata with aot data
-      message("Now merging trainingsdata with aoi data ....")
+      # merge training data with cube data
+      message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
       geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with trainingsdata ....")
+      message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
