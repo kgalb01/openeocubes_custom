@@ -1381,13 +1381,13 @@ classify_cube_rf <- Process$new(
       # combine training data with cube data
 
       # change class of geojson$geometry, if necessary
-      message("changing class of geometry if necessary . . . .")
-      geojson <- sf::st_set_geometry(geojson, "geometry")
-      message("geometry changed . . . .")
+      #message("changing class of geometry if necessary . . . .")
+      #geojson <- sf::st_set_geometry(geojson, "geometry")
+      #message("geometry changed . . . .")
 
-      message("changing srs of training data if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
+      #message("changing srs of training data if necessary . . . .")
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
 
       message("changing srs of trainingsdata if necessary . . . .")
       message("Combining training data with cube data . . . .")
@@ -1536,13 +1536,13 @@ train_model_rf <- Process$new(
       # combine training data with cube data
 
       # change class of geojson$geometry, if necessary
-      message("changing class of geometry if necessary . . . .")
-      geojson <- sf::st_set_geometry(geojson, "geometry")
-      message("geometry changed . . . .")
+      #message("changing class of geometry if necessary . . . .")
+      #geojson <- sf::st_set_geometry(geojson, "geometry")
+      #message("geometry changed . . . .")
 
-      message("changing srs of training data if necessary . . . .")
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
+      #message("changing srs of training data if necessary . . . .")
+      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      #message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
 
       message("Combining training data with cube data . . . .")
       extraction <- extract_geom(
@@ -1550,7 +1550,7 @@ train_model_rf <- Process$new(
         sf = geojson,
         FUN = median,
         reduce_time = TRUE
-        )
+      )
       message("Training data extracted ....")
 
       # merge training data with cube data
