@@ -7,6 +7,7 @@
 #' @import useful
 #' @import sf
 #' @import caret
+#' @import randomForest
 NULL
 
 #' schema_format
