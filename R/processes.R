@@ -1536,29 +1536,16 @@ train_model_rf <- Process$new(
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
       message(class(geojson))
-      geojson <- geojson$geometry
-      message(sf::st_geometry(geojson))
-      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      message(sf::st_crs(geojson))
-      if(inherits(geojson, "sf")){
-        message("Combining training data with cube data . . . .")
-        message(class(geojson))
-        extraction <- extract_geom(
-          cube = aot_cube,
-          sf = geojson
+      cube_crs <- gdalcubes::srs(data)
+      crsUse <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crsUse)
+      message("Combining training data with cube data . . . .")
+      message(class(geojson))
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
         )
-          message("Training data extracted ....")
-      } else {
-            message("Changing class of GeoJSON . . . .")
-            message(class(geojson))
-            geojson <- sf::st_as_sf(geojson)
-            message(class(geojson))
-            message("Combining training data with cube data . . . .")
-            extraction <- extract_geom(
-              cube = aot_cube,
-              sf = geojson)
         message("Training data extracted ....")
-      }
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
