@@ -1543,15 +1543,22 @@ train_model_rf <- Process$new(
       #message("changing srs of training data if necessary . . . .")
       #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
       #message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-
-      message("Combining training data with cube data . . . .")
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson#,
-        #FUN = median,
-        #reduce_time = TRUE
-      )
-      message("Training data extracted ....")
+      if(inherits(geojson, "sf")){
+        message("Combining training data with cube data . . . .")
+        extraction <- extract_geom(
+          cube = aot_cube,
+          sf = geojson
+        )
+          message("Training data extracted ....")
+      } else {
+            message("Changing class of GeoJSON . . . .")
+            geojson <- sf::st_as_sf(geojson)
+            message("Combining training data with cube data . . . .")
+            extraction <- extract_geom(
+              cube = aot_cube,
+              sf = geojson)
+        message("Training data extracted ....")
+      }
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
