@@ -1513,7 +1513,8 @@ train_model_rf <- Process$new(
       name = "geojson",
       description = "A geojson file containing the training data.",
       schema = list(
-        type = "object"
+        type = "object",
+        subtype = "geojson"
       ),
       optional = FALSE
     ),
@@ -1534,31 +1535,7 @@ train_model_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-
-      # change class of geojson$geometry, if necessary
-      #message("changing class of geometry if necessary . . . .")
-      #geojson <- sf::st_set_geometry(geojson, "geometry")
-      #message("geometry changed . . . .")
-
-      #message("changing srs of training data if necessary . . . .")
-      #geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-      #message("srs changed to ", gdalcubes::srs(aot_cube), " . . . .")
-      if(inherits(geojson, "sf")){
-        message("Combining training data with cube data . . . .")
-        extraction <- extract_geom(
-          cube = aot_cube,
-          sf = geojson
-        )
-          message("Training data extracted ....")
-      } else {
-            message("Changing class of GeoJSON . . . .")
-            geojson <- sf::st_as_sf(geojson)
-            message("Combining training data with cube data . . . .")
-            extraction <- extract_geom(
-              cube = aot_cube,
-              sf = geojson)
-        message("Training data extracted ....")
-      }
+      extraction <- extract_geom(aot_cube, geojson, df = TRUE)
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
