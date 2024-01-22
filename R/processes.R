@@ -1511,10 +1511,9 @@ train_model_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL to geojson file containing the training data.",
       schema = list(
-        type = "object",
-        subtype = "geojson"
+        type = "string",
       ),
       optional = FALSE
     ),
@@ -1535,11 +1534,12 @@ train_model_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-      geojson <- as.data.frame(geojson)
-      geojson <- sf::st_as_sf(geojson)
-      message(geojson)
-      geojson$geometry <- sf::st_sfc(geojson$geometry)
+      geojson <- sf::read_sf(geojson)
       message(class(geojson))
+      geojson <- geojson$geometry
+      message(sf::st_geometry(geojson))
+      geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
+      message(sf::st_crs(geojson))
       if(inherits(geojson, "sf")){
         message("Combining training data with cube data . . . .")
         message(class(geojson))
@@ -1869,7 +1869,7 @@ classify_cube_rf_no_return_cube <- Process$new(
 
       message("changing srs of trainingsdata if necessary . . . .")
       geojson <- sf::st_transform(geojson, crs = gdalcubes::srs(aot_cube))
-
+      
       message("Combining training data with cube data . . . .")
       extraction <- extract_geom(
         cube = aot_cube,
