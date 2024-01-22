@@ -1513,7 +1513,7 @@ train_model_rf <- Process$new(
       name = "geojson",
       description = "A URL to geojson file containing the training data.",
       schema = list(
-        type = "string",
+        type = "string"
       ),
       optional = FALSE
     ),
