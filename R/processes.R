@@ -1451,7 +1451,7 @@ classify_cube_rf <- Process$new(
                               model <- readRDS(paste0(tmp, "/model.rds"))
                               bands <- readRDS(paste0(tmp, "/names.rds"))
                               setBands <- setNames(x, bands)
-                              predict(object = model, newdata = as.data.frame(t(setBands)))
+                              return(predict(object = model, newdata = as.data.frame(t(setBands))))
                             })
 
   message("Prediction calculated ....")
@@ -1594,7 +1594,7 @@ classify_cube <- Process$new(
                               model <- readRDS(paste0(tmp, "/model.rds"))
                               bands <- readRDS(paste0(tmp, "/names.rds"))
                               setBands <- setNames(x, bands)
-                              predict(object = model, newdata = as.data.frame(t(setBands)))
+                              return(predict(object = model, newdata = as.data.frame(t(setBands))))
                             })
 
   message("Prediction calculated ....")
