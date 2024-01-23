@@ -1438,26 +1438,57 @@ classify_cube_rf <- Process$new(
     })
 
     message("Now classifying the data . . . .")
-  tmp <- tempdir()
-  saveRDS(model, paste0(tmp, "/model.rds"))
-  Sys.setenv(TMPDIRPATH = tmp)
-  bands <- names(aoi_cube)
-  saveRDS(bands, paste0(tmp, "/names.rds"))
+    tryCatch({
+      # preparing to use the model in the classification
+      message("Preparing to use the model in the classification . . . .")
 
-  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                            FUN = function(x) {
-                              library(caret)
-                              tmp <- Sys.getenv("TMPDIRPATH")
-                              model <- readRDS(paste0(tmp, "/model.rds"))
-                              bands <- readRDS(paste0(tmp, "/names.rds"))
-                              setBands <- setNames(x, bands)
-                              return(predict(object = model, newdata = as.data.frame(t(setBands))))
-                            })
+      # creating a temporary directory to save the model
+      tmp <- tempdir()
 
-  message("Prediction calculated ....")
-  message(gdalcubes::as_json(prediction))
+      # saving the model in temporary directory
+      saveRDS(model, paste0(tmp, "/model.rds"))
 
-  return(prediction)
+      # saving band names of the area of interest cube
+      band_names <- names(aoi_cube)
+      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
+
+      # Setting System Environment Variable
+      Sys.setenv(TMPDIRPATH = tmp)
+
+      # doing the prediction for each pixel in the datacube
+      prediction <- apply_pixel(aoi_cube,
+      names = "prediction",
+      keep_bands = FALSE,
+      FUN = function(x) {
+        # loading the library
+        library(caret)
+        message("Library loaded ....")
+
+        # Set System Environment Variable
+        tmp <- Sys.getenv("TMPDIRPATH")
+        message("System Environment Variable set ....", tmp)
+
+        # loading model and band names
+        model = readRDS(paste0(tmp, "/model.rds"))
+        bands = readRDS(paste0(tmp, "/names.rds"))
+        message("Model and band names loaded ....")
+
+        # combining the bands to a dataframe
+        setBands <- setNames(x, bands)
+        message("Bands combined to dataframe ....")
+
+        # predicting the class of the pixel
+        pred <- predict(model, as.data.frame(t(setBands)))
+        message("Prediction done ....")
+        return(pred)
+      })
+      message(gdalcubes::as_json(prediction))
+      return(prediction)
+    },
+    error = function(e){
+      message("Error in classification")
+      message(conditionMessage(e))
+    })
   }
 )
 
@@ -1581,26 +1612,57 @@ classify_cube <- Process$new(
   returns = eo_datacube,
   operation = function(aoi_cube, model, job){
     message("Now classifying the data . . . .")
-  tmp <- tempdir()
-  saveRDS(model, paste0(tmp, "/model.rds"))
-  Sys.setenv(TMPDIRPATH = tmp)
-  bands <- names(aoi_cube)
-  saveRDS(bands, paste0(tmp, "/names.rds"))
+    tryCatch({
+      # preparing to use the model in the classification
+      message("Preparing to use the model in the classification . . . .")
 
-  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
-                            FUN = function(x) {
-                              library(caret)
-                              tmp <- Sys.getenv("TMPDIRPATH")
-                              model <- readRDS(paste0(tmp, "/model.rds"))
-                              bands <- readRDS(paste0(tmp, "/names.rds"))
-                              setBands <- setNames(x, bands)
-                              return(predict(object = model, newdata = as.data.frame(t(setBands))))
-                            })
+      # creating a temporary directory to save the model
+      tmp <- tempdir()
 
-  message("Prediction calculated ....")
-  message(gdalcubes::as_json(prediction))
+      # saving the model in temporary directory
+      saveRDS(model, paste0(tmp, "/model.rds"))
 
-  return(prediction)
+      # saving band names of the area of interest cube
+      band_names <- names(aoi_cube)
+      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
+
+      # Setting System Environment Variable
+      Sys.setenv(TMPDIRPATH = tmp)
+
+      # doing the prediction for each pixel in the datacube
+      prediction <- apply_pixel(aoi_cube,
+      names = "prediction",
+      keep_bands = FALSE,
+      FUN = function(x) {
+        # loading the library
+        library(caret)
+        message("Library loaded ....")
+
+        # Set System Environment Variable
+        tmp <- Sys.getenv("TMPDIRPATH")
+        message("System Environment Variable set ....", tmp)
+
+        # loading model and band names
+        model = readRDS(paste0(tmp, "/model.rds"))
+        bands = readRDS(paste0(tmp, "/names.rds"))
+        message("Model and band names loaded ....")
+
+        # combining the bands to a dataframe
+        setBands <- setNames(x, bands)
+        message("Bands combined to dataframe ....")
+
+        # predicting the class of the pixel
+        pred <- predict(model, as.data.frame(t(setBands)))
+        message("Prediction done ....")
+        return(pred)
+      })
+      message(gdalcubes::as_json(prediction))
+      return(prediction)
+    },
+    error = function(e){
+      message("Error in classification")
+      message(conditionMessage(e))
+    })
   }
 )
 
@@ -1891,8 +1953,9 @@ classify_cube_rf_no_return_cube <- Process$new(
         message("Bands combined to dataframe ....")
 
         # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
+        pred <- predict(model, as.data.frame(t(setBands)))
         message("Prediction done ....")
+        return(pred)
       })
       message(gdalcubes::as_json(prediction))
       return(prediction)
@@ -2014,7 +2077,7 @@ classify_cube_rf_download_all <- Process$new(
     message("Now classifying the data . . . .")
     tryCatch({
       # doing the prediction for raster
-      prediction <- predict(object = model, newdata = aoi_raster)
+      prediction <- predict(aoi_raster, model)
       message(gdalcubes::as_json(prediction))
       return(prediction)
     },
@@ -2156,7 +2219,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       Sys.setenv(TMPDIRPATH = tmp)
 
       # doing the prediction for each pixel in the datacube
-      prediction <- predict(object = model, newdata = aoi_raster)
+      prediction <- predict(aoi_raster, model)
       message(gdalcubes::as_json(prediction))
       return(prediction)
     },
@@ -2314,8 +2377,9 @@ classify_cube_rf_download_aot_only <- Process$new(
         message("Bands combined to dataframe ....")
 
         # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
+        pred <- predict(model, as.data.frame(t(setBands)))
         message("Prediction done ....")
+        return(pred)
       })
       message(gdalcubes::as_json(prediction))
       return(prediction)
@@ -2480,8 +2544,9 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
         message("Bands combined to dataframe ....")
 
         # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
+        pred <- predict(model, as.data.frame(t(setBands)))
         message("Prediction done ....")
+        return(pred)
       })
       message(gdalcubes::as_json(prediction))
       return(prediction)
@@ -2567,8 +2632,9 @@ classify_cube_no_return_cube <- Process$new(
         message("Bands combined to dataframe ....")
 
         # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
+        pred <- predict(model, as.data.frame(t(setBands)))
         message("Prediction done ....")
+        return(pred)
       })
       message(gdalcubes::as_json(prediction))
       return(prediction)
@@ -2610,7 +2676,7 @@ classify_cube_download <- Process$new(
     message("Now classifying the data . . . .")
     tryCatch({
       # doing the prediction for raster
-      prediction <- predict(object = model, newdata = aoi_raster)
+      prediction <- predict(aoi_raster, model)
       message(gdalcubes::as_json(prediction))
       return(prediction)
     },
@@ -2655,7 +2721,7 @@ classify_cube_download_no_return_cube <- Process$new(
     message("Now classifying the data . . . .")
     tryCatch({
       # doing the prediction for raster
-      prediction <- predict(object = model, newdata = aoi_raster)
+      prediction <- predict(aoi_raster, model)
       message(gdalcubes::as_json(prediction))
       return(prediction)
     },
@@ -2702,7 +2768,7 @@ train_model_rf_download <- Process$new(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 500, job){
+  operation = function(aot_cube, geojson, ntree = 50, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # downloading data
@@ -2720,10 +2786,7 @@ train_model_rf_download <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
         message("Training data extracted ....")
 
       # merge training data with cube data
@@ -2810,10 +2873,7 @@ train_data_download <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
         message("Training data extracted ....")
 
       # merge training data with cube data
