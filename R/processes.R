@@ -1381,14 +1381,14 @@ classify_cube_rf <- Process$new(
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -1438,56 +1438,26 @@ classify_cube_rf <- Process$new(
     })
 
     message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
+  tmp <- tempdir()
+  saveRDS(model, paste0(tmp, "/model.rds"))
+  Sys.setenv(TMPDIRPATH = tmp)
+  bands <- names(aoi_cube)
+  saveRDS(bands, paste0(tmp, "/names.rds"))
 
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
+  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                            FUN = function(x) {
+                              library(caret)
+                              tmp <- Sys.getenv("TMPDIRPATH")
+                              model <- readRDS(paste0(tmp, "/model.rds"))
+                              bands <- readRDS(paste0(tmp, "/names.rds"))
+                              setBands <- setNames(x, bands)
+                              predict(object = model, newdata = as.data.frame(t(setBands)))
+                            })
 
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
+  message("Prediction calculated ....")
+  message(gdalcubes::as_json(prediction))
 
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
+  return(prediction)
   }
 )
 
@@ -1532,14 +1502,14 @@ train_model_rf <- Process$new(
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -1611,56 +1581,26 @@ classify_cube <- Process$new(
   returns = eo_datacube,
   operation = function(aoi_cube, model, job){
     message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
+  tmp <- tempdir()
+  saveRDS(model, paste0(tmp, "/model.rds"))
+  Sys.setenv(TMPDIRPATH = tmp)
+  bands <- names(aoi_cube)
+  saveRDS(bands, paste0(tmp, "/names.rds"))
 
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
+  prediction <- gdalcubes::apply_pixel(aoi_cube, names = "prediction",
+                            FUN = function(x) {
+                              library(caret)
+                              tmp <- Sys.getenv("TMPDIRPATH")
+                              model <- readRDS(paste0(tmp, "/model.rds"))
+                              bands <- readRDS(paste0(tmp, "/names.rds"))
+                              setBands <- setNames(x, bands)
+                              predict(object = model, newdata = as.data.frame(t(setBands)))
+                            })
 
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
+  message("Prediction calculated ....")
+  message(gdalcubes::as_json(prediction))
 
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
+  return(prediction)
   }
 )
 
@@ -1698,14 +1638,14 @@ train_data <- Process$new(
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -1854,14 +1794,14 @@ classify_cube_rf_no_return_cube <- Process$new(
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2015,14 +1955,14 @@ classify_cube_rf_download_all <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2141,14 +2081,14 @@ classify_cube_rf_download_no_cube_return <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2277,14 +2217,14 @@ classify_cube_rf_download_aot_only <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2443,14 +2383,14 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2772,14 +2712,14 @@ train_model_rf_download <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2862,14 +2802,14 @@ train_data_download <- Process$new(
 
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -2932,14 +2872,14 @@ stars_training <- Process$new(
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      message(class(geojson))
+      
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      message(crs_data)
-      message(sf::st_crs(geojson))
+      
+      
       message("Combining training data with cube data . . . .")
-      message(class(geojson))
+      
       aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
       extraction <- stars::st_extract(
         x = aot_st,
