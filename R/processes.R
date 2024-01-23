@@ -1683,10 +1683,9 @@ train_data <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
-        type = "object",
-        subtype = "geojson"
+        type = "string"
       ),
       optional = FALSE
     )
@@ -2026,11 +2025,8 @@ classify_cube_rf_download_all <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
-        message("Training data extracted ....")
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
@@ -2152,10 +2148,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
         message("Training data extracted ....")
 
       # merge training data with cube data
@@ -2288,10 +2281,7 @@ classify_cube_rf_download_aot_only <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
         message("Training data extracted ....")
 
       # merge training data with cube data
@@ -2455,10 +2445,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
       
       message("Combining training data with cube data . . . .")
       
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
+      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
         message("Training data extracted ....")
 
       # merge training data with cube data
