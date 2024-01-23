@@ -1470,7 +1470,7 @@ classify_cube_rf <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
@@ -1644,7 +1644,7 @@ classify_cube <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
@@ -1944,7 +1944,7 @@ classify_cube_rf_no_return_cube <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
@@ -2359,7 +2359,7 @@ classify_cube_rf_download_aot_only <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
@@ -2523,7 +2523,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
@@ -2611,7 +2611,7 @@ classify_cube_no_return_cube <- Process$new(
 
         # loading model and band names
         model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/names.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
         message("Model and band names loaded ....")
 
         # combining the bands to a dataframe
