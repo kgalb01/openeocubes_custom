@@ -1623,7 +1623,8 @@ classify_cube <- Process$new(
       # loading the library
       library(caret)
       message("Library loaded ....")
-
+      message(x)
+      message(class(x))
       # Set System Environment Variable
       tmp <- Sys.getenv("TMPDIRPATH")
       message("System Environment Variable set ....", tmp)
