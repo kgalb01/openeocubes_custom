@@ -1637,11 +1637,11 @@ classify_cube <- Process$new(
       # combining the bands to a dataframe
       setBands <- setNames(x, bands)
       message("Bands combined to dataframe ....")
-
+      return(message(x))
       # predicting the class of the pixel
-      pred <- predict(model, as.data.frame(t(setBands)))
-      message("Prediction done ....")
-      return(pred)
+      #pred <- predict(model, as.data.frame(t(setBands)))
+      #message("Prediction done ....")
+      #return(pred)
     })
     message(gdalcubes::as_json(prediction))
     return(prediction)
