@@ -1398,14 +1398,14 @@ classify_cube_rf <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -1550,14 +1550,14 @@ train_model_rf <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1716,14 +1716,14 @@ train_data <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -1872,14 +1872,14 @@ classify_cube_rf_no_return_cube <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -2031,7 +2031,7 @@ classify_cube_rf_download_all <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -2154,7 +2154,7 @@ classify_cube_rf_download_no_cube_return <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -2287,7 +2287,7 @@ classify_cube_rf_download_aot_only <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -2451,7 +2451,7 @@ classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -2779,14 +2779,14 @@ train_model_rf_download <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -2866,14 +2866,14 @@ train_data_download <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -2940,14 +2940,14 @@ stars_training <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.9,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       train_data <- as.data.frame(train_data)
