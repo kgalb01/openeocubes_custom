@@ -1419,7 +1419,7 @@ classify_cube_rf <- Process$new(
     tryCatch({
       message("Training the model . . . .")
       model <- train(train_data[,predictors],
-                     train_data$Label,
+                     train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
                      ntree = ntree)
@@ -1558,7 +1558,7 @@ train_model_rf <- Process$new(
     tryCatch({
       # train the model with random forest and training data
       model <- caret::train(train_data[,predictors],
-      train_data$Label,
+      train_data$ClassID,
       method = "rf",
       importance = TRUE,
       ntree = ntree)
@@ -1637,11 +1637,10 @@ classify_cube <- Process$new(
       # combining the bands to a dataframe
       setBands <- setNames(x, bands)
       message("Bands combined to dataframe ....")
-      return(message(x))
       # predicting the class of the pixel
-      #pred <- predict(model, as.data.frame(t(setBands)))
-      #message("Prediction done ....")
-      #return(pred)
+      pred <- predict(model, as.data.frame(t(setBands)))
+      message("Prediction done ....")
+      return(pred)
     })
     message(gdalcubes::as_json(prediction))
     return(prediction)
