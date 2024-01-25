@@ -156,9 +156,9 @@ NULL
 }
 
 
-.executeSynchronous = function(req, res) {
+.executeSynchronous = function(req, res, filename) {
  tryCatch({
-  sent_job = jsonlite::fromJSON(req$rook.input$read_lines(),simplifyDataFrame = FALSE)
+  sent_job = jsonlite::fromJSON(req$rook.input$read_lines(), simplifyDataFrame = FALSE)
   process_graph = sent_job$process
   newJob = Job$new(process = process_graph)
 
@@ -173,7 +173,7 @@ NULL
       file = gdalcubes::write_tif(job$results)
     }
     else if (format$title == "RDS") {
-      file = saveRDS(job$results, file = "output.RDS")
+      file = saveRDS(job$results, file = filename)
     }
     else {
       throwError("FormatUnsupported")
@@ -187,7 +187,7 @@ NULL
       file = gdalcubes::write_tif(job$results)
     }
     else if (format == "RDS") {
-      file = saveRDS(job$results, file = "output.RDS")
+      file = saveRDS(job$results, file = filename)
     }
     else {
       throwError("FormatUnsupported")
@@ -326,17 +326,8 @@ addEndpoint = function() {
   Session$assignProcess(train_model_rf)
   Session$assignProcess(classify_cube_rf)
   Session$assignProcess(classify_cube)
-  Session$assignProcess(train_data)
-  Session$assignProcess(model_rf)
-  Session$assignProcess(classify_cube_rf_no_return_cube)
-  Session$assignProcess(classify_cube_rf_download_all)
-  Session$assignProcess(classify_cube_rf_download_no_cube_return)
-  Session$assignProcess(classify_cube_rf_download_aot_only)
-  Session$assignProcess(classify_cube_rf_download_aot_only_no_cube_return)
-  Session$assignProcess(classify_cube_download)
-  Session$assignProcess(classify_cube_download_no_return_cube)
-  Session$assignProcess(train_data_download)
-  Session$assignProcess(classify_cube_no_return_cube)
-  Session$assignProcess(train_model_rf_download)
   Session$assignProcess(stars_training)
+  Session$assignProcess(train_model_knn)
+  Session$assignProcess(train_model_svm)
+  Session$assignProcess(train_model_gbm)
 }

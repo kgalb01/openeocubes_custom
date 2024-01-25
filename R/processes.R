@@ -1,6 +1,5 @@
 #' cube processes openEO standards mapped to gdalcubes processes
 #' @include Process-class.R
-#' @import terra
 #' @import stars
 #' @import gdalcubes
 #' @import rstac
@@ -1360,9 +1359,10 @@ classify_cube_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
+      description = "A geojson file containing the training data.",
       schema = list(
-        type = "string"
+        type = "object",
+        subtype = "geojson"
       ),
       optional = FALSE
     ),
@@ -1373,10 +1373,18 @@ classify_cube_rf <- Process$new(
         type = "integer"
       ),
       optional = TRUE
+    ),
+    Parameter$new(
+      name = "mtry",
+      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
     )
   ),
   returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 50, job){
+  operation = function(aoi_cube, aot_cube, geojson, ntree = 50, mtry = 2, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1393,7 +1401,7 @@ classify_cube_rf <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-        message("Training data extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
@@ -1405,7 +1413,7 @@ classify_cube_rf <- Process$new(
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -1422,7 +1430,8 @@ classify_cube_rf <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree)
+                     ntree = ntree,
+                     mtry = mtry)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
     },
     error = function(e){
@@ -1509,25 +1518,33 @@ train_model_rf <- Process$new(
         type = "integer"
       ),
       optional = TRUE
+    ),
+    Parameter$new(
+      name = "mtry",
+      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 50, job){
+  operation = function(aot_cube, geojson, ntree = 50, mtry = 2, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
       geojson <- sf::read_sf(geojson)
-      
+
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
+
+
       message("Combining training data with cube data . . . .")
-      
+
       extraction <- extract_geom(
         cube = aot_cube,
         sf = geojson
@@ -1544,7 +1561,7 @@ train_model_rf <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1561,8 +1578,413 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = ntree)
+      ntree = ntree,
+      mtry = mtry)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
+      return(model)
+    },
+    error = function(e){
+      message("Error in model training")
+      message(conditionMessage(e))
+    })
+  }
+)
+
+#' stars_training
+stars_training <- Process$new(
+  id = "stars_training",
+  description = "Trains a model using EO data from the datacube and training data.",
+  categories = as.array("cubes"),
+  summary = "Train model using EO data",
+  parameter = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube containing the EO data.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A URL/Path to geojson file containing the training data.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "ntree",
+      description = "The number of branches to be considered in RF.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "mtry",
+      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    )
+  ),
+  returns = list(
+    description = "The trained model.",
+    schema = list(type = "object")
+  ),
+  operation = function(aot_cube, geojson, ntree = 50, mtry = 2, job){
+    message("Beginning the process . . . .")
+    tryCatch({
+      # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+      
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+      
+      
+      message("Combining training data with cube data . . . .")
+      
+      aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
+      extraction <- stars::st_extract(
+        x = aot_st,
+        at = trainingsdata,
+        FUN = median,
+        reduce_time = TRUE
+      )
+      message("Trainingsdata extracted ....")
+      message("Training data extracted ....")
+
+      # merge training data with cube data
+      message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
+
+      # prepare the trainingdata for the modeltraining
+      message("Now preparing the trainingdata for the modeltraining ....")
+      predictors <- names(aot_cube)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_data <- extraction[train_ids,]
+      train_data <- train_data[complete.cases(train_data[,predictors]),]
+      train_data <- as.data.frame(train_data)
+      message("Trainingdata prepared . . . .")
+
+      # train the model with random forest and prepared traindata
+      message("Now training the model . . . .")
+      model <- train(train_data[,predictors],
+                     train_data$ClassID,
+                     method = "rf",
+                     importance = TRUE,
+                     ntree = ntree,
+                     mtry = mtry)
+      message("Model trained, accuracy: ", model$results$Accuracy)
+      return(model)
+    },
+    error = function(e){
+      message("Error in the process")
+      message(conditionMessage(e))
+    })
+  }
+)
+
+#' train_model_knn
+train_model_knn <- Process$new(
+  id = "train_model_knn",
+  description = "Trains a k-nearest neighbor model using training data and a datacube of the area of training.",
+  categories = as.array("cubes"),
+  summary = "Train a k-nearest neighbor model",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube containing the area of training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A URL/Path to geojson file containing the training data.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "k",
+      description = "The number of neighobrs to be considered in KNN.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    )
+  ),
+  return = list(
+    description = "The computed model.",
+    schema = list(type = "object")
+  ),
+  operation = function(aot_cube, geojson, ntree = 10, job){
+    message("Beginning the process of training . . . .")
+    tryCatch({
+      # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+
+
+      message("Combining training data with cube data . . . .")
+
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
+
+      # merge training data with cube data
+      message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
+
+      # prepare the training data for the model training
+      message("Now preparing the training data for the model training ....")
+      predictors <- names(aot_cube)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_data <- extraction[train_ids,]
+      train_data <- train_data[complete.cases(train_data[,predictors]),]
+      message("Training data prepared . . . .")
+    },
+    error = function(e){
+      message("Error in training data preparation")
+      message(conditionMessage(e))
+    })
+
+    message("Now training the model . . . .")
+    tryCatch({
+      # train the model with random forest and training data
+      model <- caret::train(train_data[,predictors],
+      train_data$ClassID,
+      method = "knn",
+      tuneLength = k)
+      message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
+      return(model)
+    },
+    error = function(e){
+      message("Error in model training")
+      message(conditionMessage(e))
+    })
+  }
+)
+
+#' train_model_gbm
+train_model_gbm <- Process$new(
+  id = "train_model_gbm",
+  description = "Trains a stochastic gradient boosting model using training data and a datacube of the area of training.",
+  categories = as.array("cubes"),
+  summary = "Train a stochastic gradient boosting model",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube containing the area of training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A URL/Path to geojson file containing the training data.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "folds",
+      description = "The number of folds for cross-validation.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "repeats",
+      description = "The number of times the cross-validation is repeated.",
+      schema = list(
+        type = "integer"
+      ),
+      optional = TRUE
+    )
+  ),
+  return = list(
+    description = "The computed model.",
+    schema = list(type = "object")
+  ),
+  operation = function(aot_cube, geojson, folds = 10, repeats = 10, job){
+    message("Beginning the process of training . . . .")
+    tryCatch({
+      # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+
+
+      message("Combining training data with cube data . . . .")
+
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
+
+      # merge training data with cube data
+      message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
+
+      # prepare the training data for the model training
+      message("Now preparing the training data for the model training ....")
+      predictors <- names(aot_cube)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_data <- extraction[train_ids,]
+      train_data <- train_data[complete.cases(train_data[,predictors]),]
+      message("Training data prepared . . . .")
+    },
+    error = function(e){
+      message("Error in training data preparation")
+      message(conditionMessage(e))
+    })
+
+    message("Now training the model . . . .")
+    tryCatch({
+      # train the model with stochastic gradient boosting and training data
+      fitControl <- trainControl(
+        method = "repeatedcv",
+        number = folds,
+        repeats = repeats
+      )
+      model <- caret::train(
+        train_data[,predictors],
+        train_data$ClassID,
+        method = "gbm",
+        trControl = fitControl,
+        verbose = FALSE
+      )
+      message("Model trained, accuracy: ", model$results$Accuracy)
+      return(model)
+    },
+    error = function(e){
+      message("Error in model training")
+      message(conditionMessage(e))
+    })
+  }
+)
+
+#' train_model_svm
+train_model_svm <- Process$new(
+  id = "train_model_svm",
+  description = "Trains a support vector machine model.",
+  categories = as.array("cubes"),
+  summary = "Train a support vector machine model",
+  parameters = list(
+    Parameter$new(
+      name = "aot_cube",
+      description = "A data cube containing the area of training.",
+      schema = list(
+        type = "object",
+        subtype = "raster-cube"
+      )
+    ),
+    Parameter$new(
+      name = "geojson",
+      description = "A URL/Path to geojson file containing the training data.",
+      schema = list(
+        type = "string"
+      ),
+      optional = FALSE
+    ),
+    Parameter$new(
+      name = "cost",
+      description = "The cost parameter of the SVM.",
+      schema = list(
+        type = "numeric"
+      ),
+      optional = TRUE
+    ),
+    Parameter$new(
+      name = "gamma",
+      description = "The gamma parameter of the SVM.",
+      schema = list(
+        type = "numeric"
+      ),
+      optional = TRUE
+    )
+  ),
+  return = list(
+    description = "The computed model.",
+    schema = list(type = "object")
+  ),
+  operation = function(aot_cube, geojson, cost = 1, gamma = 0.1, job){
+    message("Beginning the process of training . . . .")
+    tryCatch({
+      # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+
+      cube_crs <- gdalcubes::srs(aot_cube)
+      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
+      geojson = sf::st_transform(geojson, crs = crs_data)
+
+
+      message("Combining training data with cube data . . . .")
+
+      extraction <- extract_geom(
+        cube = aot_cube,
+        sf = geojson
+      )
+        message("Training data extracted ....")
+
+      # merge training data with cube data
+      message("Merging training data with cube data . . . .")
+      extraction = dplyr::select(extraction, -time)
+      geojson$PolyID <- 1:nrow(geojson)
+      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
+      message("Extraction merged with training data ....")
+
+      # prepare the training data for the model training
+      message("Now preparing the training data for the model training ....")
+      predictors <- names(aot_cube)
+      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_data <- extraction[train_ids,]
+      train_data <- train_data[complete.cases(train_data[,predictors]),]
+      message("Training data prepared . . . .")
+    },
+    error = function(e){
+      message("Error in training data preparation")
+      message(conditionMessage(e))
+    })
+
+    message("Now training the model . . . .")
+    tryCatch({
+      # train the model with support vector machine and training data
+      model <- caret::train(
+        train_data[,predictors],
+        train_data$ClassID,
+        method = "svmRadial",
+        cost = cost,
+        gamma = gamma
+      )
+      message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
     },
     error = function(e){
@@ -1644,1309 +2066,5 @@ classify_cube <- Process$new(
     })
     message(gdalcubes::as_json(prediction))
     return(prediction)
-  }
-)
-
-#' train_data
-train_data <- Process$new(
-  id = "train_data",
-  description = "Prepares the training data for the model training.",
-  categories = as.array("cubes"),
-  summary = "Prepare training data",
-  parameter = list(
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The computed training data.",
-    schema = list(type = "object")
-  ),
-  operation = function(aot_cube, geojson, job){
-    message("Beginning the process of creating training data . . . .")
-    tryCatch({
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-      return(train_data)
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' model_rf
-model_rf <- Process$new(
-  id = "model_rf",
-  description = "Trains a model using a Random Forest Algorithm.",
-  categories = as.array("cubes"),
-  summary = "Train a model using Random Forest Algorithm",
-  parameters = list(
-    Parameter$new(
-      name = "extraction",
-      description = "Data extracted from a data cube with training data.",
-      schema = list(
-        type = "object"
-      )
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "Number of trees in the random forest.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = list(
-    description = "The trained Random Forest model.",
-    schema = list(type = "object")
-  ),
-  operation = function(extraction, ntree = 50, job) {
-    message("Now training the model . . . .")
-    tryCatch({
-      # train the model with random forest and training data
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-      return(model)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-}
-)
-
-
-
-
-
-
-
-
-
-
-#########################################################################################
-######################## FROM THIS POINT ON ARE CODE VARIATIONS ########################
-##################################  TERRA CLASSIFIER ##################################
-######################################################################################
-
-
-
-
-
-
-
-
-#' classify_cube_rf_no_return_cube
-classify_cube_rf_no_return_cube <- Process$new(
-  id = "classify_cube_rf_no_return_cube",
-  description = "Classifies a data cube using a random forest algorithm.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = list(
-    description = "The computed classification result.",
-    schema = list(
-      type = "object",
-      subtype = "raster-cube"
-    )
-  ),
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- extract_geom(
-        cube = aot_cube,
-        sf = geojson
-      )
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      message("Preparing training data for modeltraining . . . .")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-
-      message("Training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
-
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
-
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        pred <- predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-        return(pred)
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' classify_cube_rf_download_all
-classify_cube_rf_download_all <- Process$new(
-  id = "classify_cube_rf_download_all",
-  description = "Classifies a data cube using a random forest algorithm.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-      message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$ID,p=0.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      message("Preparing training data for modeltraining . . . .")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-
-      message("Training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # doing the prediction for raster
-      prediction <- predict(aoi_raster, model)
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' classify_cube_rf_download_no_cube_return
-classify_cube_rf_download_no_cube_return <- Process$new(
-  id = "classify_cube_rf_download_no_cube_return",
-  description = "Classifies a data cube using a random forest algorithm.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = list(
-    description = "The computed classification result.",
-    schema = list(
-      type = "object"
-    )
-  ),
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      aoi_raster <- terra::rast(gdalcubes::write_tif(aoi_cube))
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$ID,p=0.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      message("Preparing training data for modeltraining . . . .")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-
-      message("Training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
-
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
-
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- predict(aoi_raster, model)
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' classify_cube_rf_download_aot_only
-classify_cube_rf_download_aot_only <- Process$new(
-  id = "classify_cube_rf_download_aot_only",
-  description = "Classifies a data cube using a random forest algorithm.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$ID,p=0.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      message("Preparing training data for modeltraining . . . .")
-      predictors <- names(aot_raster)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-
-      message("Training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
-
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
-
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        pred <- predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-        return(pred)
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' classify_cube_rf_download_aot_only_no_cube_return
-classify_cube_rf_download_aot_only_no_cube_return <- Process$new(
-  id = "classify_cube_rf_download_aot_only_no_cube_return",
-  description = "Classifies a data cube using a random forest algorithm.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  returns = list(
-    description = "The computed classification result.",
-    schema = list(
-      type = "object",
-      subtype = "raster-cube"
-    )
-  ),
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 500, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$ID,p=0.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      message("Preparing training data for modeltraining . . . .")
-      predictors <- names(aot_raster)
-      train_ids <- createDataPartition(extraction$FID,p=.75,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-
-      message("Training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
-
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
-
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        pred <- predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-        return(pred)
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-
-#' classify_cube_no_return_cube
-classify_cube_no_return_cube <- Process$new(
-  id = "classify_cube_no_return_cube",
-  description = "Classifies a data cube using a model.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "model",
-      description = "A model trained with the train_model_rf process.",
-      schema = list(
-        type = "object"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The computed classification result.",
-    schema = list(
-      type = "object",
-      subtype = "raster-cube"
-    )
-  ),
-  operation = function(aoi_cube, model, job){
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # preparing to use the model in the classification
-      message("Preparing to use the model in the classification . . . .")
-
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/model.rds"))
-
-      # saving band names of the area of interest cube
-      band_names <- names(aoi_cube)
-      saveRDS(band_names, paste0(tmp, "/band_names.rds"))
-
-      # Setting System Environment Variable
-      Sys.setenv(TMPDIRPATH = tmp)
-
-      # doing the prediction for each pixel in the datacube
-      prediction <- apply_pixel(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(x) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
-
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
-
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
-
-        # combining the bands to a dataframe
-        setBands <- setNames(x, bands)
-        message("Bands combined to dataframe ....")
-
-        # predicting the class of the pixel
-        pred <- predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-        return(pred)
-      })
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-
-#' classify_cube_download
-classify_cube_download <- Process$new(
-  id = "classify_cube_download",
-  description = "Classifies a data cube using a model.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "model",
-      description = "A model trained with the train_model_rf process.",
-      schema = list(
-        type = "object"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = eo_datacube,
-  operation = function(aoi_cube, model, job){
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # doing the prediction for raster
-      prediction <- predict(aoi_raster, model)
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' classify_cube_download_no_return_cube
-classify_cube_download_no_return_cube <- Process$new(
-  id = "classify_cube_download_no_return_cube",
-  description = "Classifies a data cube using a model.",
-  categories = as.array("cubes"),
-  summary = "Classify a data cube using random forest",
-  parameters = list(
-    Parameter$new(
-      name = "aoi_cube",
-      description = "A data cube containing the area of interest.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "model",
-      description = "A model trained with the train_model_rf process.",
-      schema = list(
-        type = "object"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The computed classification result.",
-    schema = list(
-      type = "object"
-      )
-  ),
-  operation = function(aoi_cube, model, job){
-    message("Now classifying the data . . . .")
-    tryCatch({
-      # doing the prediction for raster
-      prediction <- predict(aoi_raster, model)
-      message(gdalcubes::as_json(prediction))
-      return(prediction)
-    },
-    error = function(e){
-      message("Error in classification")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' train_model_rf_download
-train_model_rf_download <- Process$new(
-  id = "train_model_rf_download",
-  description = "Trains a random forest model.",
-  categories = as.array("cubes"),
-  summary = "Train a random forest model",
-  parameters = list(
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    )
-  ),
-  return = list(
-    description = "The computed model.",
-    schema = list(type = "object")
-  ),
-  operation = function(aot_cube, geojson, ntree = 50, job){
-    message("Beginning the process of training . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      message("Data downloaded ....")
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-
-    message("Now training the model . . . .")
-    tryCatch({
-      # train the model with random forest and training data
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-      return(model)
-    },
-    error = function(e){
-      message("Error in model training")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' train_data_download
-train_data_download <- Process$new(
-  id = "train_data_download",
-  description = "Prepares the training data for the model training.",
-  categories = as.array("cubes"),
-  summary = "Prepare training data",
-  parameter = list(
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the area of training.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The computed training data.",
-    schema = list(type = "object")
-  ),
-  operation = function(aot_cube, geojson, job){
-    message("Beginning the process of creating training data . . . .")
-    tryCatch({
-      # downloading data
-      message("Downloading data . . . .")
-      aot_raster <- terra::rast(gdalcubes::write_tif(aot_cube))
-      message("Data downloaded ....")
-
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      extraction <- terra::extract(aot_raster, geojson, df = TRUE)
-        message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      message("Trainingdata prepared . . . .")
-      return(train_data)
-    },
-    error = function(e){
-      message("Error in training data preparation")
-      message(conditionMessage(e))
-    })
-  }
-)
-
-#' stars_training
-stars_training <- Process$new(
-  id = "stars_training",
-  description = "Trains a model using EO data from the datacube and training data.",
-  categories = as.array("cubes"),
-  summary = "Train model using EO data",
-  parameter = list(
-    Parameter$new(
-      name = "aot_cube",
-      description = "A data cube containing the EO data.",
-      schema = list(
-        type = "object",
-        subtype = "raster-cube"
-      )
-    ),
-    Parameter$new(
-      name = "geojson",
-      description = "A URL/Path to geojson file containing the training data.",
-      schema = list(
-        type = "string"
-      ),
-      optional = FALSE
-    )
-  ),
-  returns = list(
-    description = "The trained model.",
-    schema = list(type = "object")
-  ),
-  operation = function(aot_cube, geojson, job){
-    message("Beginning the process . . . .")
-    tryCatch({
-      # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-      
-      cube_crs <- gdalcubes::srs(aot_cube)
-      crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
-      geojson = sf::st_transform(geojson, crs = crs_data)
-      
-      
-      message("Combining training data with cube data . . . .")
-      
-      aot_st <- gdalcubes::st_as_stars.cube(aot_cube)
-      extraction <- stars::st_extract(
-        x = aot_st,
-        at = trainingsdata,
-        FUN = median,
-        reduce_time = TRUE
-      )
-      message("Trainingsdata extracted ....")
-      message("Training data extracted ....")
-
-      # merge training data with cube data
-      message("Merging training data with cube data . . . .")
-      extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
-      extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
-      message("Extraction merged with training data ....")
-
-      # prepare the trainingdata for the modeltraining
-      message("Now preparing the trainingdata for the modeltraining ....")
-      predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
-      train_data <- extraction[train_ids,]
-      train_data <- train_data[complete.cases(train_data[,predictors]),]
-      train_data <- as.data.frame(train_data)
-      message("Trainingdata prepared . . . .")
-
-      # train the model with random forest and prepared traindata
-      message("Now training the model . . . .")
-      model <- train(train_data[,predictors],
-                     train_data$Label,
-                     method = "rf",
-                     importance = TRUE,
-                     ntree = 50)
-      message("Model trained, accuracy: ", model$results$Accuracy)
-      return(model)
-    },
-    error = function(e){
-      message("Error in the process")
-      message(conditionMessage(e))
-    })
   }
 )

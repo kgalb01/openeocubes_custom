@@ -23,7 +23,6 @@ Imports:
     tools,
     sf,
     useful,
-    terra,
     stars,
     gdalcubes,
     rstac,
