@@ -157,52 +157,55 @@ NULL
 
 
 .executeSynchronous = function(req, res, filename) {
- tryCatch({
-  sent_job = jsonlite::fromJSON(req$rook.input$read_lines(), simplifyDataFrame = FALSE)
-  process_graph = sent_job$process
-  newJob = Job$new(process = process_graph)
+  tryCatch({
+    sent_job = jsonlite::fromJSON(req$rook.input$read_lines(), simplifyDataFrame = FALSE)
+    process_graph = sent_job$process
+    newJob = Job$new(process = process_graph)
 
-  job = newJob$run()
-  format = job$output
+    job = newJob$run()
+    format = job$output
 
-  if (class(format) == "list") {
-    if (format$title == "Network Common Data Form") {
-      file = gdalcubes::write_ncdf(job$results)
-    }
-    else if (format$title == "GeoTiff") {
-      file = gdalcubes::write_tif(job$results)
-    }
-    else if (format$title == "RDS") {
-      file = saveRDS(job$results, file = filename)
+    if (class(format) == "list") {
+      if (format$title == "Network Common Data Form") {
+        file = gdalcubes::write_ncdf(job$results)
+      }
+      else if (format$title == "GeoTiff") {
+        file = gdalcubes::write_tif(job$results)
+      }
+      else if (format$title == "RDS") {
+        filename = paste0("output_", format(Sys.time(), "%Y%m%d%H%M%S"), ".rds")
+        saveRDS(job$results, file = filename)
+      }
+      else {
+        throwError("FormatUnsupported")
+      }
     }
     else {
-      throwError("FormatUnsupported")
+      if (format == "NetCDF") {
+        file = gdalcubes::write_ncdf(job$results)
+      }
+      else if (format == "GTiff") {
+        file = gdalcubes::write_tif(job$results)
+      }
+      else if (format == "RDS") {
+        filename = paste0("output_", format(Sys.time(), "%Y%m%d%H%M%S"), ".rds")
+        saveRDS(job$results, file = filename)
+      }
+      else {
+        throwError("FormatUnsupported")
+      }
     }
-  }
-  else {
-    if (format == "NetCDF") {
-      file = gdalcubes::write_ncdf(job$results)
-    }
-    else if (format == "GTiff") {
-      file = gdalcubes::write_tif(job$results)
-    }
-    else if (format == "RDS") {
-      file = saveRDS(job$results, file = filename)
-    }
-    else {
-      throwError("FormatUnsupported")
-    }
-  }
 
-  first = file[1]
-  res$status = 200
-  res$body = readBin(first, "raw", n = file.info(first)$size)
-  content_type = plumber:::getContentType(tools::file_ext(first))
-  res$setHeader("Content-Type", content_type)
+    first = file[1]
+    res$status = 200
+    res$body = readBin(first, "raw", n = file.info(first)$size)
+    content_type = plumber:::getContentType(tools::file_ext(first))
+    res$setHeader("Content-Type", content_type)
 
-  return(res)
-},error=handleError)
+    return(res)
+  }, error = handleError)
 }
+
 
 .cors_filter = function(req,res) {
   res$setHeader("Access-Control-Allow-Origin", req$HTTP_ORIGIN)
@@ -324,9 +327,7 @@ addEndpoint = function() {
   Session$assignProcess(ndbi)
   Session$assignProcess(ndsi)
   Session$assignProcess(train_model_rf)
-  Session$assignProcess(classify_cube_rf)
   Session$assignProcess(classify_cube)
-  Session$assignProcess(stars_training)
   Session$assignProcess(train_model_knn)
   Session$assignProcess(train_model_svm)
   Session$assignProcess(train_model_gbm)

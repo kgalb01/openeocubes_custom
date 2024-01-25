@@ -90,7 +90,6 @@ SessionConfig = function(api.port = NULL, host = NULL, aws.ipv4 = NULL) {
             description = "gdalcubes collection formats"
           )
         )
-
       )
     ),
 

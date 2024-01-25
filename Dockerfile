@@ -15,9 +15,6 @@ RUN R -e "install.packages('gdalcubes')"
 # Install randomForest package
 RUN R -e "install.packages('randomForest')"
 
-# Install terra package
-RUN R -e "install.packages('stars')"
-
 # Install caret package
 RUN R -e "install.packages('caret')"
 
