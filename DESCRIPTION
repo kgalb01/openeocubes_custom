@@ -27,7 +27,9 @@ Imports:
     gdalcubes,
     rstac,
     caret,
-    randomForest
+    randomForest,
+    gbm,
+    kernlab
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Collate: 

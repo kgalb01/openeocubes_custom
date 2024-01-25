@@ -7,6 +7,8 @@
 #' @import sf
 #' @import caret
 #' @import randomForest
+#' @import gbm
+#' @import kernlab
 NULL
 
 #' schema_format
@@ -1421,8 +1423,7 @@ classify_cube_rf <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree,
-                     mtry = mtry)
+                     ntree = ntree)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"]) #nolint
     },
     error = function(e){
@@ -1561,8 +1562,7 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = ntree,
-      mtry = mtry)
+      ntree = ntree)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
@@ -1654,8 +1654,7 @@ stars_training <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree,
-                     mtry = mtry)
+                     ntree = ntree)
       message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
     },
@@ -1702,7 +1701,7 @@ train_model_knn <- Process$new(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 10, job){
+  operation = function(aot_cube, geojson, k = 10, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
