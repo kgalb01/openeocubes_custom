@@ -1388,8 +1388,6 @@ classify_cube_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
-      geojson <- sf::read_sf(geojson)
-
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
@@ -1727,7 +1725,7 @@ train_model_knn <- Process$new(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 10, job){
+  operation = function(aot_cube, geojson, k = 10, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
