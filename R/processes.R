@@ -1357,21 +1357,13 @@ train_model_rf <- Process$new(
         type = "string"
       ),
       optional = FALSE
-    ),
-    Parameter$new(
-      name = "ntree",
-      description = "The number of branches to be considered in RF.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 50, job){
+  operation = function(aot_cube, geojson, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1400,7 +1392,7 @@ train_model_rf <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1417,7 +1409,7 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = ntree)
+      ntree = 50)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
@@ -1450,21 +1442,13 @@ train_model_knn <- Process$new(
         type = "string"
       ),
       optional = FALSE
-    ),
-    Parameter$new(
-      name = "k",
-      description = "The number of neighobrs to be considered in KNN.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, k = 10, job){
+  operation = function(aot_cube, geojson, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1493,7 +1477,7 @@ train_model_knn <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1509,7 +1493,7 @@ train_model_knn <- Process$new(
       model <- caret::train(train_data[,predictors],
       train_data$ClassID,
       method = "knn",
-      tuneLength = k)
+      tuneLength = 10)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
@@ -1542,29 +1526,13 @@ train_model_gbm <- Process$new(
         type = "string"
       ),
       optional = FALSE
-    ),
-    Parameter$new(
-      name = "folds",
-      description = "The number of folds for cross-validation.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "repeats",
-      description = "The number of times the cross-validation is repeated.",
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, folds = 10, repeats = 10, job){
+  operation = function(aot_cube, geojson, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1593,7 +1561,7 @@ train_model_gbm <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1608,8 +1576,8 @@ train_model_gbm <- Process$new(
       # train the model with stochastic gradient boosting and training data
       fitControl <- trainControl(
         method = "repeatedcv",
-        number = folds,
-        repeats = repeats
+        number = 10,
+        repeats = 10
       )
       model <- caret::train(
         train_data[,predictors],
@@ -1650,29 +1618,13 @@ train_model_svm <- Process$new(
         type = "string"
       ),
       optional = FALSE
-    ),
-    Parameter$new(
-      name = "cost",
-      description = "The cost parameter of the SVM.",
-      schema = list(
-        type = "numeric"
-      ),
-      optional = TRUE
-    ),
-    Parameter$new(
-      name = "gamma",
-      description = "The gamma parameter of the SVM.",
-      schema = list(
-        type = "numeric"
-      ),
-      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, cost = 1, gamma = 0.1, job){
+  operation = function(aot_cube, geojson, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1694,14 +1646,14 @@ train_model_svm <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- seq_len(nrow(geojson))
+      geojson$PolyID <- 1:nrow(geojson)
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1718,8 +1670,8 @@ train_model_svm <- Process$new(
         train_data[,predictors],
         train_data$ClassID,
         method = "svmRadial",
-        cost = cost,
-        gamma = gamma
+        cost = 1,
+        gamma = 0.1
       )
       message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
