@@ -1388,12 +1388,12 @@ train_model_rf <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-        message("Training data extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
+      geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -1486,7 +1486,7 @@ train_model_knn <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
+      geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -1586,7 +1586,7 @@ train_model_gbm <- Process$new(
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
+      geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -1689,12 +1689,12 @@ train_model_svm <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-        message("Training data extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
       extraction = dplyr::select(extraction, -time)
-      geojson$PolyID <- 1:nrow(geojson)
+      geojson$PolyID <- seq_len(nrow(geojson))
       extraction <- merge(extraction, geojson, by.x = "FID", by.y = "PolyID")
       message("Extraction merged with training data ....")
 
@@ -1782,8 +1782,7 @@ classify_cube <- Process$new(
       # loading the library
       library(caret)
       message("Library loaded ....")
-      message(x)
-      message(class(x))
+
       # Set System Environment Variable
       tmp <- Sys.getenv("TMPDIRPATH")
       message("System Environment Variable set ....", tmp)
