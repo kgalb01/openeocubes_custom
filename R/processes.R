@@ -1359,7 +1359,7 @@ classify_cube_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A string containing the URL or path to the GeoJSON file.",
+      description = "A URL/Path to geojson file containing the training data.",
       schema = list(
         type = "string"
       ),
@@ -1379,6 +1379,8 @@ classify_cube_rf <- Process$new(
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
+      geojson <- sf::read_sf(geojson)
+
       cube_crs <- gdalcubes::srs(aot_cube)
       crs_data <- as.numeric(gsub("EPSG:","",cube_crs))
       geojson = sf::st_transform(geojson, crs = crs_data)
@@ -1402,7 +1404,7 @@ classify_cube_rf <- Process$new(
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Trainingdata prepared . . . .")
@@ -1419,8 +1421,9 @@ classify_cube_rf <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree)
-      message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
+                     ntree = ntree,
+                     mtry = mtry)
+      message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"]) #nolint
     },
     error = function(e){
       message("Error in model training")
@@ -1446,31 +1449,31 @@ classify_cube_rf <- Process$new(
 
     # doing the prediction for each pixel in the datacube
     prediction <- chunk_apply(aoi_cube,
-      names = "prediction",
-      keep_bands = FALSE,
-      FUN = function(chunk) {
-        # loading the library
-        library(caret)
-        message("Library loaded ....")
+                              names = "prediction",
+                              keep_bands = FALSE,
+                              FUN = function(chunk) {
+                                # loading the library
+                                library(caret)
+                                message("Library loaded ....")
 
-        # Set System Environment Variable
-        tmp <- Sys.getenv("TMPDIRPATH")
-        message("System Environment Variable set ....", tmp)
+                                # Set System Environment Variable
+                                tmp <- Sys.getenv("TMPDIRPATH")
+                                message("System Environment Variable set ....", tmp)
 
-        # loading model and band names
-        model = readRDS(paste0(tmp, "/model.rds"))
-        bands = readRDS(paste0(tmp, "/band_names.rds"))
-        message("Model and band names loaded ....")
+                                # loading model and band names
+                                model = readRDS(paste0(tmp, "/model.rds"))
+                                bands = readRDS(paste0(tmp, "/band_names.rds"))
+                                message("Model and band names loaded ....")
 
-        # combining the bands to a dataframe
-        setBands <- setNames(chunk$data, bands)
-        message("Bands combined to dataframe ....")
+                                # combining the bands to a dataframe
+                                setBands <- setNames(chunk$data, bands)
+                                message("Bands combined to dataframe ....")
 
-        # predicting the class of the pixel
-        pred <- predict(model, as.data.frame(t(setBands)))
-        message("Prediction done ....")
-        return(pred)
-      })
+                                # predicting the class of the pixel
+                                pred <- predict(model, as.data.frame(t(setBands)))
+                                message("Prediction done ....")
+                                return(pred)
+                              })
     message(gdalcubes::as_json(prediction))
     return(prediction)
   }
@@ -1541,7 +1544,7 @@ train_model_rf <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1558,7 +1561,8 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = ntree)
+      ntree = ntree,
+      mtry = mtry)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
@@ -1638,7 +1642,7 @@ stars_training <- Process$new(
       # prepare the trainingdata for the modeltraining
       message("Now preparing the trainingdata for the modeltraining ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       train_data <- as.data.frame(train_data)
@@ -1650,7 +1654,8 @@ stars_training <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree)
+                     ntree = ntree,
+                     mtry = mtry)
       message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
     },
@@ -1697,7 +1702,7 @@ train_model_knn <- Process$new(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, k = 10, job){
+  operation = function(aot_cube, geojson, ntree = 10, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1714,7 +1719,7 @@ train_model_knn <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-      message("Training data extracted ....")
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
@@ -1726,7 +1731,7 @@ train_model_knn <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1814,7 +1819,7 @@ train_model_gbm <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-      message("Training data extracted ....")
+        message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
@@ -1826,7 +1831,7 @@ train_model_gbm <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1934,7 +1939,7 @@ train_model_svm <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.75,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
