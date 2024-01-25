@@ -1359,10 +1359,9 @@ classify_cube_rf <- Process$new(
     ),
     Parameter$new(
       name = "geojson",
-      description = "A geojson file containing the training data.",
+      description = "A string containing the URL or path to the GeoJSON file.",
       schema = list(
-        type = "object",
-        subtype = "geojson"
+        type = "string"
       ),
       optional = FALSE
     ),
@@ -1373,18 +1372,10 @@ classify_cube_rf <- Process$new(
         type = "integer"
       ),
       optional = TRUE
-    ),
-    Parameter$new(
-      name = "mtry",
-      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   returns = eo_datacube,
-  operation = function(aoi_cube, aot_cube, geojson, ntree = 50, mtry = 2, job){
+  operation = function(aoi_cube, aot_cube, geojson, ntree = 50, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1428,8 +1419,7 @@ classify_cube_rf <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree,
-                     mtry = mtry)
+                     ntree = ntree)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
     },
     error = function(e){
@@ -1455,32 +1445,32 @@ classify_cube_rf <- Process$new(
     Sys.setenv(TMPDIRPATH = tmp)
 
     # doing the prediction for each pixel in the datacube
-    prediction <- apply_pixel(aoi_cube,
-    names = "prediction",
-    keep_bands = FALSE,
-    FUN = function(x) {
-      # loading the library
-      library(caret)
-      message("Library loaded ....")
+    prediction <- chunk_apply(aoi_cube,
+      names = "prediction",
+      keep_bands = FALSE,
+      FUN = function(chunk) {
+        # loading the library
+        library(caret)
+        message("Library loaded ....")
 
-      # Set System Environment Variable
-      tmp <- Sys.getenv("TMPDIRPATH")
-      message("System Environment Variable set ....", tmp)
+        # Set System Environment Variable
+        tmp <- Sys.getenv("TMPDIRPATH")
+        message("System Environment Variable set ....", tmp)
 
-      # loading model and band names
-      model = readRDS(paste0(tmp, "/model.rds"))
-      bands = readRDS(paste0(tmp, "/band_names.rds"))
-      message("Model and band names loaded ....")
+        # loading model and band names
+        model = readRDS(paste0(tmp, "/model.rds"))
+        bands = readRDS(paste0(tmp, "/band_names.rds"))
+        message("Model and band names loaded ....")
 
-      # combining the bands to a dataframe
-      setBands <- setNames(x, bands)
-      message("Bands combined to dataframe ....")
+        # combining the bands to a dataframe
+        setBands <- setNames(chunk$data, bands)
+        message("Bands combined to dataframe ....")
 
-      # predicting the class of the pixel
-      pred <- predict(model, as.data.frame(t(setBands)))
-      message("Prediction done ....")
-      return(pred)
-    })
+        # predicting the class of the pixel
+        pred <- predict(model, as.data.frame(t(setBands)))
+        message("Prediction done ....")
+        return(pred)
+      })
     message(gdalcubes::as_json(prediction))
     return(prediction)
   }
@@ -1516,21 +1506,13 @@ train_model_rf <- Process$new(
         type = "integer"
       ),
       optional = TRUE
-    ),
-    Parameter$new(
-      name = "mtry",
-      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   return = list(
     description = "The computed model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 50, mtry = 2, job){
+  operation = function(aot_cube, geojson, ntree = 50, job){
     message("Beginning the process of training . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1576,8 +1558,7 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = ntree,
-      mtry = mtry)
+      ntree = ntree)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
@@ -1618,21 +1599,13 @@ stars_training <- Process$new(
         type = "integer"
       ),
       optional = TRUE
-    ),
-    Parameter$new(
-      name = "mtry",
-      description = "The number of variables to be considered when searching for the best split at each node of the tree in RF.", #nolint
-      schema = list(
-        type = "integer"
-      ),
-      optional = TRUE
     )
   ),
   returns = list(
     description = "The trained model.",
     schema = list(type = "object")
   ),
-  operation = function(aot_cube, geojson, ntree = 50, mtry = 2, job){
+  operation = function(aot_cube, geojson, ntree = 50, job){
     message("Beginning the process . . . .")
     tryCatch({
       # combine training data with cube data
@@ -1677,8 +1650,7 @@ stars_training <- Process$new(
                      train_data$ClassID,
                      method = "rf",
                      importance = TRUE,
-                     ntree = ntree,
-                     mtry = mtry)
+                     ntree = ntree)
       message("Model trained, accuracy: ", model$results$Accuracy)
       return(model)
     },
@@ -1742,7 +1714,7 @@ train_model_knn <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-        message("Training data extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
@@ -1842,7 +1814,7 @@ train_model_gbm <- Process$new(
         cube = aot_cube,
         sf = geojson
       )
-        message("Training data extracted ....")
+      message("Training data extracted ....")
 
       # merge training data with cube data
       message("Merging training data with cube data . . . .")
