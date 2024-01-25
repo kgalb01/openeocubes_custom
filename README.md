@@ -33,13 +33,13 @@ https://hub.docker.com/r/brianpondi/openeocubes
 ### Running the container
 It is highly recommended to deploy the service on an AWS EC2 machine that is in us-west-2 region (Oregon) as that is the data centre where the Earth Observation(EO) datasets found in AWS STAC search are stored. This enables the processing of EO data from the source so that the network latency between the platform and data is as low as possible hence cheaper. You can expose port 8080 of the EC2 instance to deploy and communicate with the service.
 ```bash
-docker run -p 8080:8080  --env AWSHOST=<AWS-IPv4-ADDRESS>  brianpondi/openeocubes
+docker run -p 8080:8080  --env AWSHOST=<AWS-IPv4-ADDRESS>  custom/openeocubes
 ```
 
 For light tasks and processes you can host the service on pc and therefore you don't need AWS IPv4 Address
 
 ```bash
-docker run -p 8080:8080  brianpondi/openeocubes
+docker run -p 8080:8080  custom/openeocubes
 ```
 
 ## Easy Deployment with Docker
