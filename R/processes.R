@@ -1392,7 +1392,7 @@ train_model_rf <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1409,7 +1409,7 @@ train_model_rf <- Process$new(
       train_data$ClassID,
       method = "rf",
       importance = TRUE,
-      ntree = 50)
+      ntree = 10)
       message("Model trained, accuracy: ", model$err.rate[nrow(model$err.rate), "OOB"])
       return(model)
     },
