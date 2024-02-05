@@ -124,8 +124,16 @@ load_collection <- Process$new(
       optional = TRUE
     )
   ),
+    Parameter$new(
+      name = "cloud"
+      description = "The maximum cloud cover percentage. Default is 30",
+      schema = list(
+        type = "number"
+      ),
+      optional = TRUE
+    )
   returns = eo_datacube,
-  operation = function(id, spatial_extent, temporal_extent, bands = NULL, job) {
+  operation = function(id, spatial_extent, temporal_extent, bands = NULL, cloud = 30, job) {
     # Check if 'crs' is present in spatial_extent and convert it to numeric; if missing, default to 4326
     crs <- ifelse("crs" %in% names(spatial_extent), as.numeric(spatial_extent$crs), 4326)
     message("crs is : ", crs)
@@ -179,7 +187,7 @@ load_collection <- Process$new(
       items_fetch()
     # create image collection from stac items features
     img.col <- stac_image_collection(items$features, property_filter =
-                                       function(x) {x[["eo:cloud_cover"]] < 30})
+                                       function(x) {x[["eo:cloud_cover"]] < cloud})
     message("Image collection created...")
     # Define cube view with monthly aggregation
     crs <- c("EPSG", crs)
@@ -1477,7 +1485,7 @@ train_model_knn <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1561,7 +1569,7 @@ train_model_gbm <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1653,7 +1661,7 @@ train_model_svm <- Process$new(
       # prepare the training data for the model training
       message("Now preparing the training data for the model training ....")
       predictors <- names(aot_cube)
-      train_ids <- createDataPartition(extraction$FID,p=0.6,list = FALSE)
+      train_ids <- createDataPartition(extraction$FID,p=0.2,list = FALSE)
       train_data <- extraction[train_ids,]
       train_data <- train_data[complete.cases(train_data[,predictors]),]
       message("Training data prepared . . . .")
@@ -1748,7 +1756,7 @@ classify_cube <- Process$new(
       setBands <- setNames(x, bands)
       message("Bands combined to dataframe ....")
       # predicting the class of the pixel
-      pred <- predict(model, as.data.frame(t(setBands)))
+      pred <- as.integer(predict(object = model, newdata = as.data.frame(t(setBands))))
       message("Prediction done ....")
       return(pred)
     })
