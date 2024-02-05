@@ -122,16 +122,16 @@ load_collection <- Process$new(
         type = "array"
       ),
       optional = TRUE
-    )
-  ),
+    ),
     Parameter$new(
       name = "cloud",
-      description = "The maximum cloud cover percentage. Default is 30",
+      description = "Maximum cloud cover percentage. Default is 30.",
       schema = list(
         type = "number"
       ),
       optional = TRUE
     )
+  ),
   returns = eo_datacube,
   operation = function(id, spatial_extent, temporal_extent, bands = NULL, cloud = 30, job) {
     # Check if 'crs' is present in spatial_extent and convert it to numeric; if missing, default to 4326
