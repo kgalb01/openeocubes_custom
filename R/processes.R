@@ -125,7 +125,7 @@ load_collection <- Process$new(
     )
   ),
     Parameter$new(
-      name = "cloud"
+      name = "cloud",
       description = "The maximum cloud cover percentage. Default is 30",
       schema = list(
         type = "number"
