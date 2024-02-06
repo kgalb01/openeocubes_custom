@@ -189,7 +189,7 @@ NULL
         file = gdalcubes::write_ncdf(job$results)
       } else if (format == "GTiff") {
         file = gdalcubes::write_tif(job$results)
-      } else if (format$title == "RDS") {
+      } else if (format == "RDS") {
         tryCatch({
           download_dir <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
           tmp <- tempfile(pattern = "model", fileext = ".rds")
