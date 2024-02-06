@@ -171,8 +171,7 @@ NULL
       } else if (format$title == "GeoTiff") {
         file = gdalcubes::write_tif(job$results)
       } else if (format$title == "RDS") {
-        timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
-        file = saveRDS(job$results, file = paste0("model_", timestamp, ".RDS"))
+        file = saveRDS(job$results, file = filename)
       } else {
         throwError("FormatUnsupported")
       }
@@ -182,8 +181,7 @@ NULL
       } else if (format == "GTiff") {
         file = gdalcubes::write_tif(job$results)
       } else if (format == "RDS") { 
-        timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
-        file = saveRDS(job$results, file = paste0("model_", timestamp, ".RDS"))
+        file = saveRDS(job$results, file = filename)
       } else {
         throwError("FormatUnsupported")
       }
@@ -198,6 +196,7 @@ NULL
     return(res)
   }, error = handleError)
 }
+
 
 
 .cors_filter = function(req,res) {
