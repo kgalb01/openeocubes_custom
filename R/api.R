@@ -167,15 +167,18 @@ NULL
 
     if (class(format) == "list") {
       if (format$title == "Network Common Data Form") {
-        file = gdalcubes::write_ncdf(job$results)
+        file_path = gdalcubes::write_ncdf(job$results)
       } else if (format$title == "GeoTiff") {
-        file = gdalcubes::write_tif(job$results)
+        file_path = gdalcubes::write_tif(job$results)
       } else if (format$title == "RDS") {
         tryCatch({
-          download_dir <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+          # Erstellen Sie einen temporären Dateinamen mit dem Muster "model" und der Erweiterung ".rds"
           tmp <- tempfile(pattern = "model", fileext = ".rds")
-          file_name <- file.path(download_dir, tmp)
-          file <- base::saveRDS(job$results, file_name)
+          
+          # Speichern Sie das Modell in dieser temporären Datei
+          base::saveRDS(job$results, file = tmp)
+          
+          file_path <- tmp
         },
         error = function(e){
           message("Error in saving data")
@@ -186,15 +189,18 @@ NULL
       }
     } else {
       if (format == "NetCDF") {
-        file = gdalcubes::write_ncdf(job$results)
+        file_path = gdalcubes::write_ncdf(job$results)
       } else if (format == "GTiff") {
-        file = gdalcubes::write_tif(job$results)
+        file_path = gdalcubes::write_tif(job$results)
       } else if (format == "RDS") {
         tryCatch({
-          download_dir <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+          # Erstellen Sie einen temporären Dateinamen mit dem Muster "model" und der Erweiterung ".rds"
           tmp <- tempfile(pattern = "model", fileext = ".rds")
-          file_name <- file.path(download_dir, tmp)
-          file <- base::saveRDS(job$results, file_name)
+          
+          # Speichern Sie das Modell in dieser temporären Datei
+          base::saveRDS(job$results, file = tmp)
+          
+          file_path <- tmp
         },
         error = function(e){
           message("Error in saving data")
@@ -205,15 +211,15 @@ NULL
       }
     }
 
-    first = file[1]
     res$status = 200
-    res$body = readBin(first, "raw", n = file.info(first)$size)
-    content_type = plumber:::getContentType(tools::file_ext(first))
+    res$body = readBin(file_path, "raw", n = file.info(file_path)$size)
+    content_type = plumber:::getContentType(tools::file_ext(file_path))
     res$setHeader("Content-Type", content_type)
 
     return(res)
   }, error = handleError)
 }
+
 
 
 
