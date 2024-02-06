@@ -175,7 +175,7 @@ NULL
           download_dir <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
           tmp <- tempfile(pattern = "model", fileext = ".rds")
           file_name <- file.path(download_dir, tmp)
-          file <- saveRDS(job$results, file_name)
+          file <- base::saveRDS(job$results, file_name)
         },
         error = function(e){
           message("Error in saving data")
@@ -194,7 +194,7 @@ NULL
           download_dir <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
           tmp <- tempfile(pattern = "model", fileext = ".rds")
           file_name <- file.path(download_dir, tmp)
-          file <- saveRDS(job$results, file_name)
+          file <- base::saveRDS(job$results, file_name)
         },
         error = function(e){
           message("Error in saving data")
