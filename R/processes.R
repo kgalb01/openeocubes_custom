@@ -1419,14 +1419,7 @@ train_model_rf <- Process$new(
       importance = TRUE,
       ntree = 10)
 
-      message("Model trained, OOB accuracy: ", tail(model$results$Accuracy, 1))
-      message("Now saving the Model ....")
-      # creating a temporary directory to save the model
-      #tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, "test_model.rds")
-      message("Model saved ....")
+      message("Model trained . . . .")
 
       return(model)
     },
@@ -1512,14 +1505,7 @@ train_model_knn <- Process$new(
       method = "knn",
       tuneLength = 10)
 
-      message("Model trained, OOB accuracy: ", tail(model$results$Accuracy, 1))
-      message("Now saving the Model ....")
-      # creating a temporary directory to save the model
-      tmp <- tempdir()
-
-      # saving the model in temporary directory
-      saveRDS(model, paste0(tmp, "/test_model.rds"))
-      message("Model saved ....")
+      message("Model trained . . . .")
 
       return(model)
     },
@@ -1612,16 +1598,8 @@ train_model_gbm <- Process$new(
         trControl = fitControl,
         verbose = FALSE
       )
-      
-      message("Model trained, OOB accuracy: ", tail(model$results$Accuracy, 1))
-      message("Now saving the Model ....")
-      # seeting download directory to save the model
-      download_folder <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+      message("Model trained . . . .")
 
-      # saving the model in temporary directory
-      saveRDS(model, paste0(download_folder, "/test_model.rds"))
-      message("Model saved ....")
-      
       return(model)
     },
     error = function(e){
@@ -1708,8 +1686,8 @@ train_model_svm <- Process$new(
         cost = 1,
         gamma = 0.1
       )
-      message("Model trained, OOB accuracy: ", tail(model$results$Accuracy, 1))
-      
+      message("Model trained . . . .")
+
       return(model)
     },
     error = function(e){

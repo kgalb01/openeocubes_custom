@@ -171,7 +171,8 @@ NULL
       } else if (format$title == "GeoTiff") {
         file = gdalcubes::write_tif(job$results)
       } else if (format$title == "RDS") {
-        file = saveRDS(job$results, file = filename)
+        tmp <- tempdir()
+        file = saveRDS(job$results, file = paste0(tmp, "/model.rds"))
       } else {
         throwError("FormatUnsupported")
       }
@@ -181,7 +182,8 @@ NULL
       } else if (format == "GTiff") {
         file = gdalcubes::write_tif(job$results)
       } else if (format == "RDS") { 
-        file = saveRDS(job$results, file = filename)
+        tmp <- tempdir()
+        file = saveRDS(job$results, file = paste0(tmp, "/model.rds"))
       } else {
         throwError("FormatUnsupported")
       }
@@ -196,6 +198,7 @@ NULL
     return(res)
   }, error = handleError)
 }
+
 
 
 
