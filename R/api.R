@@ -168,30 +168,23 @@ NULL
     if (class(format) == "list") {
       if (format$title == "Network Common Data Form") {
         file = gdalcubes::write_ncdf(job$results)
-      }
-      else if (format$title == "GeoTiff") {
+      } else if (format$title == "GeoTiff") {
         file = gdalcubes::write_tif(job$results)
-      }
-      else if (format$title == "RDS") {
-        filename = paste0("output_", format(Sys.time(), "%Y%m%d%H%M%S"), ".rds")
-        saveRDS(job$results, file = filename)
-      }
-      else {
+      } else if (format$title == "RDS") {
+        timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
+        file = saveRDS(job$results, file = paste0("model_", timestamp, ".RDS"))
+      } else {
         throwError("FormatUnsupported")
       }
-    }
-    else {
+    } else {
       if (format == "NetCDF") {
         file = gdalcubes::write_ncdf(job$results)
-      }
-      else if (format == "GTiff") {
+      } else if (format == "GTiff") {
         file = gdalcubes::write_tif(job$results)
-      }
-      else if (format == "RDS") {
-        filename = paste0("output_", format(Sys.time(), "%Y%m%d%H%M%S"), ".rds")
-        saveRDS(job$results, file = filename)
-      }
-      else {
+      } else if (format == "RDS") { 
+        timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
+        file = saveRDS(job$results, file = paste0("model_", timestamp, ".RDS"))
+      } else {
         throwError("FormatUnsupported")
       }
     }

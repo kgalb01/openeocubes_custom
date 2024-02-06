@@ -69,16 +69,16 @@ SessionConfig = function(api.port = NULL, host = NULL, aws.ipv4 = NULL) {
       ),
       RDS = list(
         title = "RDS",
-        description = "Export to RDS",
-        gis_data_types = list("raster"),
+        description = "Export to RDS.",
+        gis_data_types = list("model"),
         parameters = list(
-          format = list(
-            type = "string",
-            description = "RDS"
-          )
+        format = list(
+        type = "string",
+        description = "RDS"
         )
       )
-    ),
+    )
+  ),
     inputFormats = list(
       ImageCollection = list(
         title = "ImageCollection",
