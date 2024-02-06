@@ -172,12 +172,8 @@ NULL
         file_path = gdalcubes::write_tif(job$results)
       } else if (format$title == "RDS") {
         tryCatch({
-          # Erstellen Sie einen temporären Dateinamen mit dem Muster "model" und der Erweiterung ".rds"
           tmp <- tempfile(pattern = "model", fileext = ".rds")
-          
-          # Speichern Sie das Modell in dieser temporären Datei
           base::saveRDS(job$results, file = tmp)
-          
           file_path <- tmp
         },
         error = function(e){
@@ -194,12 +190,8 @@ NULL
         file_path = gdalcubes::write_tif(job$results)
       } else if (format == "RDS") {
         tryCatch({
-          # Erstellen Sie einen temporären Dateinamen mit dem Muster "model" und der Erweiterung ".rds"
           tmp <- tempfile(pattern = "model", fileext = ".rds")
-          
-          # Speichern Sie das Modell in dieser temporären Datei
           base::saveRDS(job$results, file = tmp)
-          
           file_path <- tmp
         },
         error = function(e){
